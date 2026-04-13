@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user profile information and settings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user." },
+        "email": { "type": "string", "format": "email", "description": "User's email address." },
+        "displayName": { "type": "string", "description": "User's display name." },
+        "photoURL": { "type": "string", "description": "URL to user's profile photo." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the profile was created." }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "ChatSession": {
+      "title": "Chat Session",
+      "description": "Stores a single chat session for a user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner of the session." },
+        "title": { "type": "string", "description": "Title of the chat session." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the session was created." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the session was last updated." }
+      },
+      "required": ["uid", "title", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single message within a chat session.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "assistant"], "description": "Who sent the message." },
+        "content": { "type": "string", "description": "Content of the message." },
+        "timestamp": { "type": "number", "description": "When the message was sent." },
+        "type": { "type": "string", "enum": ["text", "image", "video", "code"], "description": "Type of message." }
+      },
+      "required": ["role", "content", "timestamp"]
+    },
+    "GalleryImage": {
+      "title": "Gallery Image",
+      "description": "A generated image saved to the user's gallery.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "Data URL or storage URL of the image." },
+        "prompt": { "type": "string", "description": "The prompt used to generate the image." },
+        "createdAt": { "type": "number", "description": "Timestamp of generation." },
+        "aspectRatio": { "type": "string", "description": "Aspect ratio of the image." },
+        "isLocal": { "type": "boolean", "description": "Whether the image is stored in localStorage." }
+      },
+      "required": ["url", "prompt", "createdAt", "isLocal"]
+    },
+    "NeuralArchitecture": {
+      "title": "Neural Architecture",
+      "description": "A custom silicon architecture design.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the architecture." },
+        "components": { "type": "array", "description": "List of components in the architecture." },
+        "createdAt": { "type": "number", "description": "Timestamp of creation." }
+      },
+      "required": ["name", "components", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "User's chat sessions."
+    },
+    "/users/{userId}/sessions/{sessionId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a session."
+    },
+    "/users/{userId}/gallery/{imageId}": {
+      "schema": "GalleryImage",
+      "description": "User's generated image gallery."
+    },
+    "/users/{userId}/architectures/{archId}": {
+      "schema": "NeuralArchitecture",
+      "description": "User's custom silicon architectures."
+    }
+  }
+}

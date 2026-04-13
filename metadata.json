@@ -1,0 +1,5 @@
+{
+  "name": "NEXUS",
+  "description": "Advanced Multimodal AI Assistant capable of coding, image generation, video generation, and more.",
+  "requestFramePermissions": ["camera"]
+}

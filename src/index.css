@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-nexus-bg: #050505;
+  --color-nexus-card: #0f0f12;
+  --color-nexus-accent: #00f2ff;
+  --color-nexus-accent-dim: rgba(0, 242, 255, 0.1);
+  --color-nexus-purple: #bc13fe;
+  --color-nexus-text: #e0e0e0;
+  --color-nexus-text-dim: #888888;
+}
+
+@keyframes neural-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+
+@keyframes neural-drift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(2%, 2%) rotate(1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.neural-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 50%, #0a0a0f 0%, #050505 100%);
+  overflow: hidden;
+}
+
+.neural-bg::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(0, 242, 255, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(188, 19, 254, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.02) 0%, transparent 60%);
+  filter: blur(80px);
+  animation: neural-drift 30s ease-in-out infinite;
+}
+
+.neural-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+.neural-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+  mask-image: radial-gradient(circle at 50% 50%, black, transparent 80%);
+}
+
+@keyframes neural-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.neural-scan-line {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, var(--color-nexus-accent), transparent);
+  height: 2px;
+  width: 100%;
+  opacity: 0.2;
+  pointer-events: none;
+  animation: neural-scan 4s linear infinite;
+}
+
+@layer base {
+  html, body {
+    @apply h-full overflow-hidden;
+  }
+  body {
+    @apply bg-nexus-bg text-nexus-text font-sans antialiased selection:bg-nexus-accent/30;
+  }
+}
+
+.glass {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10;
+}
+
+.neon-glow {
+  box-shadow: 0 0 15px var(--color-nexus-accent-dim);
+}
+
+.neon-border {
+  @apply border-nexus-accent/30;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Fabric.js Canvas Overrides */
+.canvas-container {
+  @apply !shadow-2xl rounded-lg overflow-hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+}
+
