@@ -36,7 +36,11 @@ export default function Login() {
         await loginWithEmail(email, password);
       }
     } catch (error: any) {
-      setError(error.message || 'Authentication failed');
+      if (error.code === 'auth/operation-not-allowed') {
+        setError('Neural Link Error: Email/Password access is disabled in the Firebase Console. Please enable it in the "Sign-in method" tab or use Google Login.');
+      } else {
+        setError(error.message || 'Authentication failed');
+      }
     } finally {
       setIsLoggingIn(false);
     }
