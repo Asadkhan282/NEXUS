@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, 
   Mail, 
@@ -12,14 +12,62 @@ import {
   Activity,
   Database,
   Globe,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
+import { validateApiKey } from '../services/gemini';
 
 export default function NeuralAccount() {
   const { user, logout } = useAuth();
   const [activeSection, setActiveSection] = React.useState('profile');
+  const [showKeyDialog, setShowKeyDialog] = React.useState(false);
+  const [manualKey, setManualKey] = React.useState('');
+  const [isValidating, setIsValidating] = React.useState(false);
+  const [keyError, setKeyError] = React.useState<string | null>(null);
+  const [hasAnyKey, setHasAnyKey] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkKey = async () => {
+      const localKey = localStorage.getItem('nexus_user_key');
+      const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      
+      // @ts-ignore
+      const platformKey = window.aistudio?.hasSelectedApiKey ? await window.aistudio.hasSelectedApiKey() : false;
+      
+      setHasAnyKey(!!(platformKey || localKey || (envKey && envKey !== 'undefined')));
+    };
+    checkKey();
+  }, []);
+
+  const handleOpenKeySelector = async () => {
+    // @ts-ignore
+    if (window.aistudio?.openSelectKey) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+      setHasAnyKey(true);
+      setShowKeyDialog(false);
+    } else {
+      setKeyError("Platform key selector is unavailable. Please enter your key manually.");
+    }
+  };
+
+  const handleSaveManualKey = async () => {
+    if (!manualKey.trim()) return;
+    setIsValidating(true);
+    setKeyError(null);
+    const isValid = await validateApiKey(manualKey);
+    if (isValid) {
+      localStorage.setItem('nexus_user_key', manualKey);
+      setHasAnyKey(true);
+      setShowKeyDialog(false);
+      setManualKey('');
+    } else {
+      setKeyError("Invalid API Key.");
+    }
+    setIsValidating(false);
+  };
 
   const stats = [
     { label: 'Neural Sessions', value: '124', icon: Activity, color: 'text-nexus-accent' },
@@ -168,13 +216,21 @@ export default function NeuralAccount() {
                   <div className="p-4 rounded-xl bg-white/5 border border-white/5">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white">Personal Gemini Key</span>
-                      <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest">Active</span>
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase tracking-widest",
+                        hasAnyKey ? "text-green-400" : "text-red-400"
+                      )}>
+                        {hasAnyKey ? "Active" : "Offline"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-xs text-white/40 font-mono">
-                        ••••••••••••••••••••••••••••••••
+                        {localStorage.getItem('nexus_user_key') ? "••••••••••••••••••••••••••••••••" : "No personal key detected"}
                       </div>
-                      <button className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-white transition-all">
+                      <button 
+                        onClick={() => setShowKeyDialog(true)}
+                        className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-white transition-all"
+                      >
                         Update
                       </button>
                     </div>
@@ -322,6 +378,72 @@ export default function NeuralAccount() {
           )}
         </div>
       </div>
+
+      {/* API Key Dialog */}
+      <AnimatePresence>
+        {showKeyDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-md glass p-8 rounded-3xl border border-nexus-accent/30 shadow-[0_0_50px_rgba(0,242,255,0.1)]"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-nexus-accent/20">
+                    <Key className="w-5 h-5 text-nexus-accent" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Neural Key Auth</h3>
+                </div>
+                <button onClick={() => setShowKeyDialog(false)} className="p-2 hover:bg-white/5 rounded-full">
+                  <ChevronRight className="w-5 h-5 text-nexus-text-dim rotate-90" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {/* @ts-ignore */}
+                {window.aistudio?.openSelectKey && (
+                  <button
+                    onClick={handleOpenKeySelector}
+                    className="w-full py-4 rounded-xl bg-nexus-accent text-nexus-bg font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-3"
+                  >
+                    <Key className="w-5 h-5" />
+                    Select Platform Key
+                  </button>
+                )}
+
+                <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                    <span className="bg-nexus-bg px-2 text-nexus-text-dim">Or Manual Entry</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <input
+                    type="password"
+                    value={manualKey}
+                    onChange={(e) => setManualKey(e.target.value)}
+                    placeholder="Enter Gemini API Key..."
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-nexus-accent outline-none"
+                  />
+                  {keyError && <p className="text-[10px] text-red-400">{keyError}</p>}
+                  <button
+                    onClick={handleSaveManualKey}
+                    disabled={!manualKey.trim() || isValidating}
+                    className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Key'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

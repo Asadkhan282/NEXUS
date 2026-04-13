@@ -31,6 +31,7 @@ const components = [
   // Logic & Processing
   { id: 'core', name: 'Neural Core', type: 'Logic', status: 'Optimized', category: 'Logic' },
   { id: 'tensor', name: 'Tensor Core', type: 'GPU', status: 'Active', category: 'Logic' },
+  { id: 'nvidia-tensor', name: 'NVIDIA Tensor Core', type: 'GPU', status: 'Active', category: 'Logic' },
   { id: 'transformer', name: 'Transformer Engine', type: 'NPU', status: 'Experimental', category: 'Logic' },
   { id: 'vector', name: 'Vector Processor', type: 'NPU', status: 'Stable', category: 'Logic' },
   { id: 'gnn', name: 'GNN Logic Block', type: 'Logic', status: 'High-End', category: 'Logic' },

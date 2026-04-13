@@ -37,7 +37,9 @@ export default function Login() {
       }
     } catch (error: any) {
       if (error.code === 'auth/operation-not-allowed') {
-        setError('Neural Link Error: Email/Password access is disabled in the Firebase Console. Please enable it in the "Sign-in method" tab or use Google Login.');
+        setError('Neural Link Error: Email/Password access is disabled in the Firebase Console. Please enable it in the "Sign-in method" tab.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        setError('Neural Link Error: This domain is not authorized in Firebase. Please add your Vercel URL to the "Authorized domains" list in the Firebase Console.');
       } else {
         setError(error.message || 'Authentication failed');
       }

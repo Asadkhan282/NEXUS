@@ -25,8 +25,16 @@ This project is configured for easy deployment to [Vercel](https://vercel.com).
 3.  Add environment variables when prompted or via the dashboard.
 4.  Run `vercel --prod` for production deployment.
 
-## Configuration Details
+## Troubleshooting
 
-*   **Build Command:** `npm run build`
-*   **Output Directory:** `dist`
-*   **Routing:** Handled by `vercel.json` to support Single Page Application (SPA) routing.
+### "Neural Link Offline: No API key detected"
+If you see this error on Vercel:
+1.  Go to your **Vercel Project Settings** > **Environment Variables**.
+2.  Ensure `GEMINI_API_KEY` is added and its value is correct.
+3.  **Redeploy** your application for the changes to take effect.
+
+### Firebase Authentication Errors
+If login fails on Vercel:
+1.  Go to the [Firebase Console](https://console.firebase.google.com).
+2.  Navigate to **Authentication** > **Settings** > **Authorized domains**.
+3.  Add your Vercel deployment URL (e.g., `your-app.vercel.app`) to the list.

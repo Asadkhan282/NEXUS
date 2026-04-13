@@ -10,8 +10,13 @@ export function getGeminiClient(userApiKey?: string) {
   // Prioritize: 1. Explicitly passed key, 2. Platform selected key, 3. System environment key
   const key = userApiKey || process.env.API_KEY || SYSTEM_API_KEY;
   
-  if (!key) {
-    throw new NexusError(NexusErrorType.API_KEY_INVALID, "Neural Link Offline: No API key detected. Please select a personal key in the Advanced Auth panel.");
+  if (!key || key === 'undefined') {
+    const isVercel = window.location.hostname.includes('vercel.app');
+    const message = isVercel 
+      ? "Neural Link Offline: No API key detected. Please add GEMINI_API_KEY to your Vercel Environment Variables."
+      : "Neural Link Offline: No API key detected. Please select a personal key using the 'Auth' button or check your environment configuration.";
+    
+    throw new NexusError(NexusErrorType.API_KEY_INVALID, message);
   }
   return new GoogleGenAI({ apiKey: key });
 }
@@ -103,8 +108,8 @@ function handleGeminiError(error: any) {
   const status = error.status || error.code || error.error?.code || "";
   const statusText = error.statusText || error.error?.status || "";
   
-  if (status === 403 || statusText === "PERMISSION_DENIED" || message.includes("PERMISSION_DENIED") || message.includes("API_KEY_INVALID") || message.includes("invalid api key")) {
-    throw new NexusError(NexusErrorType.API_KEY_INVALID, "Access Denied [403]. This core requires a personal API key from a paid Google Cloud project with specific permissions (e.g., Veo/Imagen access).");
+  if (status === 403 || statusText === "PERMISSION_DENIED" || message.includes("PERMISSION_DENIED") || message.includes("API_KEY_INVALID") || message.includes("invalid api key") || message.includes("No API key detected")) {
+    throw new NexusError(NexusErrorType.API_KEY_INVALID, message || "Access Denied [403]. This core requires a personal API key from a paid Google Cloud project with specific permissions (e.g., Veo/Imagen access).");
   } else if (message.includes("Requested entity was not found")) {
     // Per skill: If "Requested entity was not found", prompt for key selection again
     throw new NexusError(NexusErrorType.API_KEY_INVALID, "Neural Link Reset: The selected API key is invalid or has expired. Please re-authorize using the 'Auth' button.");

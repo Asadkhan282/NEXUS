@@ -41,6 +41,10 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
   const [aspectRatio, setAspectRatio] = React.useState('1:1');
   const [showKeyDialog, setShowKeyDialog] = React.useState(false);
   const [hasPlatformKey, setHasPlatformKey] = React.useState(false);
+  const [hasAnyKey, setHasAnyKey] = React.useState(false);
+  const [manualKey, setManualKey] = React.useState('');
+  const [isValidating, setIsValidating] = React.useState(false);
+  const [keyError, setKeyError] = React.useState<string | null>(null);
   const [attachments, setAttachments] = React.useState<FileAttachment[]>([]);
   const [selectedModel, setSelectedModel] = React.useState(MODELS.GENERAL);
   const [showModelMenu, setShowModelMenu] = React.useState(false);
@@ -73,12 +77,20 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
 
   React.useEffect(() => {
     const checkKey = async () => {
+      // Check platform key
+      let platformKey = false;
       // @ts-ignore
       if (window.aistudio?.hasSelectedApiKey) {
         // @ts-ignore
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setHasPlatformKey(hasKey);
+        platformKey = await window.aistudio.hasSelectedApiKey();
+        setHasPlatformKey(platformKey);
       }
+
+      // Check for any key (Platform, LocalStorage, or Env)
+      const localKey = localStorage.getItem('nexus_user_key');
+      const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+      
+      setHasAnyKey(!!(platformKey || localKey || (envKey && envKey !== 'undefined')));
     };
     checkKey();
     const interval = setInterval(checkKey, 2000);
@@ -92,7 +104,28 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
       await window.aistudio.openSelectKey();
       setHasPlatformKey(true);
       setShowKeyDialog(false);
+    } else {
+      // If platform selector is unavailable, we show the manual input (which is already in the dialog)
+      setKeyError("Platform key selector is unavailable in this environment. Please enter your key manually below.");
     }
+  };
+
+  const handleSaveManualKey = async () => {
+    if (!manualKey.trim()) return;
+    
+    setIsValidating(true);
+    setKeyError(null);
+    
+    const isValid = await validateApiKey(manualKey);
+    if (isValid) {
+      localStorage.setItem('nexus_user_key', manualKey);
+      setHasAnyKey(true);
+      setShowKeyDialog(false);
+      setManualKey('');
+    } else {
+      setKeyError("Invalid API Key. Please check your key and try again.");
+    }
+    setIsValidating(false);
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -264,8 +297,16 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
                 <span className="text-[10px] font-bold uppercase tracking-wider">Auth</span>
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-nexus-accent animate-pulse" />
-                <span className="text-[10px] font-mono text-nexus-accent uppercase tracking-widest">Neural Link Active</span>
+                <div className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  hasAnyKey ? "bg-nexus-accent shadow-[0_0_8px_rgba(0,242,255,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                )} />
+                <span className={cn(
+                  "text-[10px] font-mono uppercase tracking-widest",
+                  hasAnyKey ? "text-nexus-accent" : "text-red-500"
+                )}>
+                  {hasAnyKey ? "Neural Link Active" : "Neural Link Offline"}
+                </span>
               </div>
             </div>
           </div>
@@ -438,29 +479,72 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
               
               <p className="text-sm text-nexus-text-dim mb-6 leading-relaxed">
                 High-fidelity Vision and Motion generation requires a dedicated Gemini API key from a paid Google Cloud project. 
-                Click below to select or provide your personal key.
               </p>
 
               <div className="space-y-4">
-                <a 
-                  href="https://ai.google.dev/gemini-api/docs/billing" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block text-xs text-nexus-accent hover:underline mb-4"
-                >
-                  Learn about Gemini API billing & requirements
-                </a>
+                {/* Platform Selector (if available) */}
+                {/* @ts-ignore */}
+                {window.aistudio?.openSelectKey && (
+                  <button
+                    onClick={handleOpenKeySelector}
+                    className="w-full py-4 rounded-xl bg-nexus-accent text-nexus-bg font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,242,255,0.2)]"
+                  >
+                    <Key className="w-5 h-5" />
+                    Select Personal API Key
+                  </button>
+                )}
 
-                <button
-                  onClick={handleOpenKeySelector}
-                  className="w-full py-4 rounded-xl bg-nexus-accent text-nexus-bg font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,242,255,0.2)]"
-                >
-                  <Key className="w-5 h-5" />
-                  Select Personal API Key
-                </button>
+                <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                    <span className="bg-nexus-bg px-2 text-nexus-text-dim">Or Enter Manually</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={manualKey}
+                      onChange={(e) => setManualKey(e.target.value)}
+                      placeholder="Enter your Gemini API Key..."
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-nexus-accent outline-none transition-all"
+                    />
+                    <Key className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-dim" />
+                  </div>
+                  
+                  {keyError && (
+                    <p className="text-[10px] text-red-400 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {keyError}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={handleSaveManualKey}
+                    disabled={!manualKey.trim() || isValidating}
+                    className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    {isValidating ? 'Validating...' : 'Save Neural Key'}
+                  </button>
+                </div>
                 
+                <div className="pt-4">
+                  <a 
+                    href="https://aistudio.google.com/app/apikey" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block text-center text-xs text-nexus-accent hover:underline"
+                  >
+                    Get a free API key from Google AI Studio
+                  </a>
+                </div>
+
                 <p className="text-[10px] text-nexus-text-dim text-center">
-                  Your key is managed securely by the AI Studio platform.
+                  Your key is stored locally in your browser and never sent to our servers.
                 </p>
               </div>
             </motion.div>
