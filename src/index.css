@@ -12,6 +12,19 @@
   --color-nexus-purple: #bc13fe;
   --color-nexus-text: #e0e0e0;
   --color-nexus-text-dim: #888888;
+
+  --animate-gradient-x: gradient-x 15s ease infinite;
+  --animate-progress: progress 3s linear infinite;
+}
+
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 @keyframes neural-pulse {

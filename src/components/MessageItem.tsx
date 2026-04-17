@@ -53,10 +53,22 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
   };
 
   const renderContent = () => {
-    if (Array.isArray(message.content)) {
-      const textParts = message.content.filter(p => p.text);
-      const thoughtParts = message.content.filter(p => p.thought);
-      const imageDataParts = message.content.filter(p => p.inlineData);
+    let displayContent = message.content;
+    let thoughtFromText: string | null = null;
+
+    // Extract thoughts from XML tags if content is a string
+    if (typeof displayContent === 'string' && displayContent.includes('<thought>')) {
+      const thoughtMatch = displayContent.match(/<thought>([\s\S]*?)<\/thought>/);
+      if (thoughtMatch) {
+        thoughtFromText = thoughtMatch[1];
+        displayContent = displayContent.replace(/<thought>[\s\S]*?<\/thought>/, '').trim();
+      }
+    }
+
+    if (Array.isArray(message.content) || thoughtFromText) {
+      const textParts = Array.isArray(message.content) ? message.content.filter(p => p.text) : [{ text: displayContent as string }];
+      const thoughtParts = Array.isArray(message.content) ? message.content.filter(p => p.thought) : (thoughtFromText ? [{ thought: thoughtFromText }] : []);
+      const imageDataParts = Array.isArray(message.content) ? message.content.filter(p => p.inlineData) : [];
 
       return (
         <div className="space-y-4">
@@ -72,7 +84,10 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
                   </div>
                   <span className="text-xs font-bold text-white tracking-tight uppercase">Neural Reasoning Chain</span>
                 </div>
-                <ChevronDown className={cn("w-4 h-4 text-nexus-text-dim transition-transform", showThoughts ? "rotate-180" : "")} />
+                <div className="flex items-center gap-2">
+                  {message.isStreaming && <span className="text-[8px] text-nexus-accent animate-pulse font-mono tracking-widest uppercase">Streaming Thinking</span>}
+                  <ChevronDown className={cn("w-4 h-4 text-nexus-text-dim transition-transform", showThoughts ? "rotate-180" : "")} />
+                </div>
               </button>
               <AnimatePresence>
                 {showThoughts && (
@@ -96,8 +111,15 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
           )}
 
           {textParts.map((part, i) => (
-            <div key={i}>
+            <div key={i} className="relative">
               {part.text && <MarkdownContent content={part.text} />}
+              {message.isStreaming && i === textParts.length - 1 && (
+                <motion.span 
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="inline-block w-1.5 h-4 ml-1 bg-nexus-accent align-middle"
+                />
+              )}
             </div>
           ))}
 
@@ -111,6 +133,20 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
               />
             </div>
           ))}
+
+          {/* Search Grounding Results */}
+          {message.groundingMetadata?.searchEntryPoint && (
+            <div className="mt-4 p-4 rounded-xl border border-white/10 bg-black/40">
+              <div className="flex items-center gap-2 mb-3">
+                <ExternalLink className="w-3 h-3 text-nexus-accent" />
+                <span className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-widest">Neural Knowledge Sources</span>
+              </div>
+              <div 
+                className="text-xs text-nexus-accent hover:underline cursor-pointer"
+                dangerouslySetInnerHTML={{ __html: message.groundingMetadata.searchEntryPoint.htmlContent }}
+              />
+            </div>
+          )}
         </div>
       );
     }

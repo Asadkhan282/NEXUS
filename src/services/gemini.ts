@@ -103,6 +103,64 @@ export async function generateResponse(
   }
 }
 
+export async function* generateResponseStream(
+  prompt: string,
+  history: ChatMessage[] = [],
+  model: string = MODELS.GENERAL,
+  config?: GenerationConfig,
+  userApiKey?: string,
+  attachments?: { mimeType: string; data: string }[]
+) {
+  try {
+    const client = getGeminiClient(userApiKey);
+    
+    const contents = history.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: Array.isArray(msg.content) 
+        ? msg.content.map(p => {
+            const part: any = {};
+            if (p.text) part.text = p.text;
+            if (p.inlineData) part.inlineData = p.inlineData;
+            return part;
+          })
+        : [{ text: msg.content as string }]
+    }));
+
+    const currentParts: MessagePart[] = [{ text: prompt }];
+    if (attachments && attachments.length > 0) {
+      attachments.forEach(att => {
+        currentParts.push({
+          inlineData: { mimeType: att.mimeType, data: att.data }
+        });
+      });
+    }
+
+    contents.push({ role: 'user', parts: currentParts });
+
+    const stream = await client.models.generateContentStream({
+      model,
+      contents,
+      config: {
+        temperature: config?.temperature ?? 0.7,
+        topP: config?.topP ?? 0.95,
+        topK: config?.topK ?? 40,
+        maxOutputTokens: config?.maxOutputTokens ?? 8192,
+        systemInstruction: `${config?.systemInstruction || "You are NEXUS, an advanced multimodal AI assistant."}${config?.useTpu ? "\n[ACCELERATION: GOOGLE TPU v5p ACTIVE]" : ""}${config?.useCuda ? "\n[ACCELERATION: CUSTOM CUDA KERNELS ACTIVE]" : ""}`,
+        thinkingConfig: (config?.thinkingLevel && model.toLowerCase().includes('thinking')) ? { thinkingLevel: config.thinkingLevel } : undefined,
+        tools: model.includes('flash') || model.includes('pro') ? [{ googleSearch: {} }] : undefined,
+      }
+    });
+
+    for await (const chunk of stream) {
+      yield chunk;
+    }
+  } catch (error: any) {
+    console.error("Error in streaming response:", error);
+    handleGeminiError(error);
+    throw error;
+  }
+}
+
 function handleGeminiError(error: any) {
   const message = error.message || "";
   const status = error.status || error.code || error.error?.code || "";

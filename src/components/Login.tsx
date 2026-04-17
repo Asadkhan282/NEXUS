@@ -19,7 +19,12 @@ export default function Login() {
     try {
       await loginWithGoogle();
     } catch (error: any) {
-      setError(error.message || 'Login failed');
+      if (error.code === 'auth/unauthorized-domain') {
+        const currentDomain = window.location.hostname;
+        setError(`Neural Link Error: The domain "${currentDomain}" is not authorized in Firebase. Please add it to the "Authorized domains" list in the Firebase Console (Authentication > Settings).`);
+      } else {
+        setError(error.message || 'Login failed');
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -39,7 +44,8 @@ export default function Login() {
       if (error.code === 'auth/operation-not-allowed') {
         setError('Neural Link Error: Email/Password access is disabled in the Firebase Console. Please enable it in the "Sign-in method" tab.');
       } else if (error.code === 'auth/unauthorized-domain') {
-        setError('Neural Link Error: This domain is not authorized in Firebase. Please add your Vercel URL to the "Authorized domains" list in the Firebase Console.');
+        const currentDomain = window.location.hostname;
+        setError(`Neural Link Error: The domain "${currentDomain}" is not authorized in Firebase. Please add it to the "Authorized domains" list in the Firebase Console (Authentication > Settings).`);
       } else {
         setError(error.message || 'Authentication failed');
       }

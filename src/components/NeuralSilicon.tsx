@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
+  ArrowLeft,
   Cpu, 
   Zap, 
   Activity, 
@@ -194,12 +195,25 @@ export default function NeuralSilicon() {
     setCanvasOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
   };
 
+  const exitSilicon = () => {
+    window.dispatchEvent(new CustomEvent('nexus-switch-tab', { detail: 'dashboard' }));
+  };
+
   return (
     <div className="h-full flex flex-col p-4 md:p-8 overflow-hidden relative">
       <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Neural Silicon</h1>
-          <p className="text-nexus-text-dim text-xs md:text-sm mt-1">Architect custom AI-optimized Circuits, CPUs, and GPUs</p>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={exitSilicon}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-nexus-text-dim hover:text-white hover:bg-white/10 transition-all text-xs font-bold uppercase tracking-widest mr-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Exit
+          </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Neural Silicon</h1>
+            <p className="text-nexus-text-dim text-xs md:text-sm mt-1">Architect custom AI-optimized Circuits, CPUs, and GPUs</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button 

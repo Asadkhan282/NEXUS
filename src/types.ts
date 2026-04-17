@@ -28,6 +28,9 @@ export interface ChatMessage {
   modelUsed?: string;
   attachments?: { mimeType: string; data: string }[];
   isError?: boolean;
+  isStreaming?: boolean;
+  groundingMetadata?: any;
+  videoOperation?: any;
 }
 
 export interface ChatSession {
