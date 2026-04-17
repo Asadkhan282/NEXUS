@@ -12,11 +12,16 @@ import {
   Film,
   Layers,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  History,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { generateVideo, getVideoStatus, fetchVideoBlob } from '../services/gemini';
 import { useAuth } from '../contexts/AuthContext';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { MotionHistoryItem } from '../types';
 
 export default function NeuralMotion() {
   const { user } = useAuth();
@@ -25,20 +30,55 @@ export default function NeuralMotion() {
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
+  const [history, setHistory] = React.useState<MotionHistoryItem[]>([]);
+
+  React.useEffect(() => {
+    if (!user) return;
+
+    const historyRef = collection(db, 'users', user.uid, 'motion_history');
+    const q = query(historyRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as MotionHistoryItem[];
+      setHistory(items);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/motion_history`);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handleSynthesize = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || !user) return;
     
     setIsRendering(true);
     setError(null);
     setVideoUrl(null);
     setProgress(0);
 
+    let historyId = "";
+
     try {
+      // Create initial history record
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'motion_history'), {
+        prompt: prompt.trim(),
+        status: 'processing',
+        createdAt: Date.now()
+      });
+      historyId = docRef.id;
+
       // Prioritize platform key if available, otherwise check local storage
       const userKey = localStorage.getItem('nexus_user_key') || undefined;
       let operation = await generateVideo(prompt, userKey);
       
+      // Update history with operation ID
+      await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
+        operationId: operation.name
+      });
+
       // Polling logic
       const poll = async () => {
         try {
@@ -54,12 +94,24 @@ export default function NeuralMotion() {
             const url = await fetchVideoBlob(videoUri, userKey);
             setVideoUrl(url);
             setProgress(100);
+            
+            // Update history to completed
+            await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
+              status: 'completed',
+              videoUrl: url
+            });
           } else {
             throw new Error("Video generation completed but no URI was found.");
           }
         } catch (err: any) {
           console.error("Video polling failed:", err);
           setError(err.message || "Neural Desync: Motion synthesis failed during rendering.");
+          
+          if (historyId) {
+            await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
+              status: 'failed'
+            });
+          }
         } finally {
           setIsRendering(false);
         }
@@ -70,11 +122,26 @@ export default function NeuralMotion() {
       console.error("Video generation failed:", err);
       setError(err.message || "Failed to initialize motion synthesis.");
       setIsRendering(false);
+      
+      if (historyId) {
+        await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
+          status: 'failed'
+        });
+      }
+    }
+  };
+
+  const deleteHistoryItem = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'motion_history', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/motion_history/${id}`);
     }
   };
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 overflow-hidden">
+    <div className="h-full flex flex-col p-4 md:p-8 overflow-y-auto no-scrollbar">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Motion Gen</h1>
@@ -82,7 +149,7 @@ export default function NeuralMotion() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* Controls */}
         <div className="lg:col-span-1 space-y-6 overflow-y-auto pr-2 no-scrollbar">
           <div className="glass p-6 rounded-3xl border border-white/10">
@@ -168,7 +235,7 @@ export default function NeuralMotion() {
         </div>
 
         {/* Video Preview */}
-        <div className="lg:col-span-2 flex flex-col gap-6 overflow-hidden">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="flex-1 glass rounded-3xl border border-white/10 relative group overflow-hidden flex items-center justify-center bg-black/20">
             {videoUrl ? (
               <video 
@@ -250,6 +317,116 @@ export default function NeuralMotion() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Motion History Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-3">
+            <History className="w-5 h-5 text-nexus-accent" />
+            Motion History
+          </h2>
+          <div className="text-[10px] uppercase tracking-widest text-nexus-text-dim font-bold">
+            {history.length} Visions Synthesized
+          </div>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="glass p-12 rounded-3xl border border-white/5 flex flex-col items-center justify-center text-center opacity-40">
+            <Film className="w-12 h-12 text-nexus-text-dim mb-4" />
+            <p className="text-sm font-bold uppercase tracking-widest text-white">No historical motion data detected</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <AnimatePresence>
+              {history.map((item) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="glass group rounded-3xl border border-white/5 overflow-hidden flex flex-col hover:border-nexus-accent/30 transition-all"
+                >
+                  <div className="aspect-video bg-black/40 relative overflow-hidden flex items-center justify-center">
+                    {item.videoUrl ? (
+                      <video 
+                        src={item.videoUrl} 
+                        className="w-full h-full object-cover"
+                        onMouseEnter={(e) => e.currentTarget.play()}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.pause();
+                          e.currentTarget.currentTime = 0;
+                        }}
+                        muted
+                        loop
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        {item.status === 'processing' ? (
+                          <Loader2 className="w-8 h-8 text-nexus-accent animate-spin" />
+                        ) : (
+                          <AlertCircle className="w-8 h-8 text-red-500/50" />
+                        )}
+                        <span className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-widest">
+                          {item.status === 'processing' ? 'Synthesizing...' : 'Desync Failed'}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {item.videoUrl && (
+                        <a 
+                          href={item.videoUrl} 
+                          download={`motion-${item.id}.mp4`}
+                          className="p-2 rounded-lg bg-black/60 backdrop-blur-md text-white hover:text-nexus-accent transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                      )}
+                      <button 
+                        onClick={() => deleteHistoryItem(item.id)}
+                        className="p-2 rounded-lg bg-black/60 backdrop-blur-md text-white hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {item.videoUrl && (
+                      <button 
+                        onClick={() => setVideoUrl(item.videoUrl!)}
+                        className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-all opacity-0 hover:opacity-100"
+                      >
+                        <Play className="w-8 h-8 text-white fill-white" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col">
+                    <p className="text-xs text-white font-medium line-clamp-2 mb-4 leading-relaxed">
+                      {item.prompt}
+                    </p>
+                    <div className="mt-auto flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3 h-3 text-nexus-text-dim" />
+                        <span className="text-[10px] text-nexus-text-dim">
+                          {new Date(item.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className={cn(
+                        "text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-md border",
+                        item.status === 'completed' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                        item.status === 'processing' ? "bg-nexus-accent/10 border-nexus-accent/20 text-nexus-accent" :
+                        "bg-red-500/10 border-red-500/20 text-red-400"
+                      )}>
+                        {item.status}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );

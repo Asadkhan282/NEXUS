@@ -21,6 +21,10 @@ import {
 import { ChatMessage, MessagePart } from '../types';
 import { MODEL_LABELS } from '../constants';
 import { cn } from '../lib/utils';
+import { generateSpeech } from '../services/gemini';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -28,9 +32,12 @@ interface MessageItemProps {
 }
 
 export default function MessageItem({ message, onRegenerate }: MessageItemProps) {
+  const { user } = useAuth();
   const [copied, setCopied] = React.useState(false);
   const [isSpeaking, setIsSpeaking] = React.useState(false);
+  const [isSynthesizing, setIsSynthesizing] = React.useState(false);
   const [showThoughts, setShowThoughts] = React.useState(true);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const isAssistant = message.role === 'assistant';
 
   const handleCopy = (text: string) => {
@@ -39,17 +46,63 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSpeak = (text: string) => {
+  const handleNeuralSpeak = async (text: string) => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       setIsSpeaking(false);
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onend = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
+    try {
+      let audioUrl = "";
+      
+      if (message.audioData) {
+        // Use cached audio
+        const binary = atob(message.audioData);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'audio/wav' });
+        audioUrl = URL.createObjectURL(blob);
+      } else {
+        setIsSynthesizing(true);
+        // Get API key from somewhere or assume it's in env for now
+        // For simplicity, we'll try to get it from localStorage (nexus_user_key)
+        const userKey = localStorage.getItem('nexus_user_key') || undefined;
+        
+        const base64 = await generateSpeech(text, userKey);
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'audio/wav' });
+        audioUrl = URL.createObjectURL(blob);
+        
+        // Save to message for persistence if we have session/message info
+        // (This would require passing session ID, but let's just use it once for now)
+      }
+
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+      audioRef.current.src = audioUrl;
+      audioRef.current.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      await audioRef.current.play();
+      setIsSpeaking(true);
+    } catch (error) {
+      console.error("Neural Voice failed:", error);
+      // Fallback to browser TTS
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.onend = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
+    } finally {
+      setIsSynthesizing(false);
+    }
   };
 
   const renderContent = () => {
@@ -270,11 +323,20 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
             {isAssistant && (
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
-                  onClick={() => handleSpeak(typeof message.content === 'string' ? message.content : (message.content as MessagePart[]).map(p => p.text || '').join(' '))}
-                  className={cn("p-1.5 rounded-lg hover:bg-white/5 transition-colors", isSpeaking ? "text-nexus-accent" : "text-nexus-text-dim")}
-                  title="Read Aloud"
+                  onClick={() => handleNeuralSpeak(typeof message.content === 'string' ? message.content : (message.content as MessagePart[]).map(p => p.text || '').join(' '))}
+                  className={cn(
+                    "p-1.5 rounded-lg transition-all",
+                    isSpeaking 
+                      ? "bg-nexus-accent/20 text-nexus-accent animate-pulse" 
+                      : "hover:bg-white/5 text-nexus-text-dim hover:text-white"
+                  )}
+                  title={isSpeaking ? "Stop Synthesis" : "Neural Synthesis"}
                 >
-                  <Volume2 className="w-3.5 h-3.5" />
+                  {isSynthesizing ? (
+                    <div className="w-3.5 h-3.5 border-2 border-nexus-accent border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Volume2 className="w-3.5 h-3.5" />
+                  )}
                 </button>
                 <button 
                   onClick={() => handleCopy(typeof message.content === 'string' ? message.content : (message.content as MessagePart[]).map(p => p.text || '').join(' '))}

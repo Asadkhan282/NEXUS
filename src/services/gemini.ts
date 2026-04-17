@@ -1,4 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Modality } from "@google/genai";
 import { collection, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { MessageRole, MessagePart, ChatMessage, GenerationConfig, NexusErrorType } from '../types';
@@ -324,6 +324,37 @@ export async function getVideoStatus(operation: any, userApiKey?: string) {
     return updatedOperation;
   } catch (error: any) {
     console.error("Error checking video status:", error);
+    handleGeminiError(error);
+    throw error;
+  }
+}
+
+export async function generateSpeech(
+  text: string,
+  userApiKey?: string,
+  voice: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' = 'Kore'
+): Promise<string> {
+  try {
+    const ai = getGeminiClient(userApiKey);
+    const response = await ai.models.generateContent({
+      model: MODELS.TTS,
+      contents: [{ parts: [{ text: `Say this with high fidelity and natural inflection: ${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voice },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio data returned from neural core.");
+    
+    return base64Audio;
+  } catch (error: any) {
+    console.error("Neural Voice synthesis failed:", error);
     handleGeminiError(error);
     throw error;
   }

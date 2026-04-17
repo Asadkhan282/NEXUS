@@ -16,10 +16,13 @@ import NeuralCode from './components/NeuralCode';
 import NeuralVision from './components/NeuralVision';
 import NeuralMotion from './components/NeuralMotion';
 import NeuralSilicon from './components/NeuralSilicon';
+import NeuralTasks from './components/NeuralTasks';
 import NeuralBiometrics from './components/NeuralBiometrics';
 import NeuralSecurity from './components/NeuralSecurity';
 import NeuralAccount from './components/NeuralAccount';
 import NeuralArtifacts from './components/NeuralArtifacts';
+import NeuralTraining from './components/NeuralTraining';
+import NeuralAgency from './components/NeuralAgency';
 import { generateResponse, generateResponseStream, generateImage, saveToGallery, generateVideo, getVideoStatus, fetchVideoBlob, NexusError } from './services/gemini';
 import { MODELS, MODEL_LABELS } from './constants';
 import { ChatMessage, NexusErrorType, GenerationConfig, ChatSession, VisualConfig, MessagePart } from './types';
@@ -94,28 +97,28 @@ function NexusApp() {
   const [artifacts, setArtifacts] = React.useState<any[]>([]);
   const [showArtifacts, setShowArtifacts] = React.useState(false);
   
-  const detectArtifacts = (text: string) => {
+  React.useEffect(() => {
+    if (artifacts.length > 0 && !activeArtifactId) {
+      setActiveArtifactId(artifacts[0].id);
+    }
+  }, [artifacts, activeArtifactId]);
+
+  const detectArtifacts = React.useCallback((text: string) => {
     const codeBlockRegex = /```(html|svg|markdown|javascript|typescript|react)\n([\s\S]*?)```/g;
     let match;
-    const newArtifacts: any[] = [];
+    const foundArtifacts: any[] = [];
 
     while ((match = codeBlockRegex.exec(text)) !== null) {
       const type = match[1];
       const content = match[2];
       
-      // Check if this content is already in artifacts (avoiding duplicates while streaming)
-      const isDuplicate = artifacts.some(a => a.content.slice(0, 100) === content.slice(0, 100));
-      if (isDuplicate) continue;
-
-      const id = `art_${Math.random().toString(36).substring(2, 9)}`;
       let title = "Neural Output";
       if (type === 'html') title = "Web Interface";
       else if (type === 'svg') title = "Vector Synthesis";
       else if (type === 'markdown') title = "Technical Doc";
       else title = "Source Code";
 
-      newArtifacts.push({
-        id,
+      foundArtifacts.push({
         type: type === 'javascript' || type === 'typescript' || type === 'react' ? 'code' : type as any,
         title,
         content,
@@ -123,20 +126,32 @@ function NexusApp() {
       });
     }
 
-    if (newArtifacts.length > 0) {
+    if (foundArtifacts.length > 0) {
       setArtifacts(prev => {
         const unique = [...prev];
-        newArtifacts.forEach(na => {
-          if (!unique.some(oa => oa.content.slice(0, 100) === na.content.slice(0, 100))) {
-            unique.push(na);
+        let added = false;
+        
+        foundArtifacts.forEach(na => {
+          // Check if this content is already in artifacts
+          const isDuplicate = unique.some(oa => oa.content.slice(0, 100) === na.content.slice(0, 100));
+          if (!isDuplicate) {
+            unique.push({
+              ...na,
+              id: `art_${Math.random().toString(36).substring(2, 9)}`
+            });
+            added = true;
           }
         });
+
+        if (added) {
+          setShowArtifacts(true);
+          // If no artifact is active, set the first one of the newly added ones
+          // (Actually, set the first one from the unique list if none is active)
+        }
         return unique;
       });
-      setShowArtifacts(true);
-      if (!activeArtifactId && newArtifacts.length > 0) setActiveArtifactId(newArtifacts[0].id);
     }
-  };
+  }, []);
 
   const [visualConfig, setVisualConfig] = React.useState<VisualConfig>({
     particleColor: '#00f2ff',
@@ -210,10 +225,6 @@ function NexusApp() {
 
   if (!user) {
     return <LandingPage />;
-  }
-
-  if (activeTab === 'silicon') {
-    return <NeuralSilicon />;
   }
 
   const handleSendMessage = async (
@@ -461,6 +472,14 @@ function NexusApp() {
               <NeuralSecurity />
             ) : activeTab === 'account' ? (
               <NeuralAccount />
+            ) : activeTab === 'silicon' ? (
+              <NeuralSilicon setActiveTab={setActiveTab} />
+            ) : activeTab === 'tasks' ? (
+              <NeuralTasks />
+            ) : activeTab === 'training' ? (
+              <NeuralTraining />
+            ) : activeTab === 'agency' ? (
+              <NeuralAgency />
             ) : activeTab === 'code' ? (
               <NeuralCode />
             ) : activeTab === 'image' ? (

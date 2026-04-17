@@ -3,6 +3,8 @@ import { motion } from 'motion/react';
 import { 
   Cpu, 
   BookOpen, 
+  ListChecks,
+  Brain,
   Beaker, 
   Newspaper, 
   Palette, 
@@ -16,7 +18,8 @@ import {
   Image as ImageIcon,
   Video,
   Microchip,
-  User
+  User,
+  Users
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -27,6 +30,8 @@ interface NeuralDashboardProps {
 export default function NeuralDashboard({ setActiveTab }: NeuralDashboardProps) {
   const modules = [
     { icon: MessageSquare, label: "Neural Chat", tab: 'chat', color: 'text-blue-400', desc: 'Advanced multimodal conversation' },
+    { icon: ListChecks, label: "Neural Tasks", tab: 'tasks', color: 'text-nexus-accent', desc: 'Prioritize and synchronize objectives' },
+    { icon: Brain, label: "Neural Training", tab: 'training', color: 'text-nexus-accent', desc: 'Knowledge ingestion & model fine-tuning' },
     { icon: BookOpen, label: "Academy", tab: 'academy', color: 'text-nexus-accent', desc: 'Master neural logic & architecture' },
     { icon: Beaker, label: "Neural Lab", tab: 'lab', color: 'text-emerald-400', desc: 'Experimental research & telemetry' },
     { icon: Newspaper, label: "Neural News", tab: 'news', color: 'text-nexus-purple', desc: 'Global AI transmissions & updates' },
@@ -37,6 +42,7 @@ export default function NeuralDashboard({ setActiveTab }: NeuralDashboardProps) 
     { icon: Code2, label: "Nexus Code", tab: 'code', color: 'text-orange-400', desc: 'Architect production-ready systems' },
     { icon: ImageIcon, label: "Vision", tab: 'image', color: 'text-yellow-400', desc: 'Generate high-fidelity imagery' },
     { icon: Video, label: "Motion", tab: 'video', color: 'text-red-400', desc: 'Synthesize cinematic video' },
+    { icon: Users, label: "Neural Agency", tab: 'agency', color: 'text-nexus-accent', desc: 'Autonomous multi-agent swarms' },
     { icon: Settings, label: "Architect", tab: 'architect', color: 'text-nexus-text-dim', desc: 'Configure neural core parameters' },
   ];
 

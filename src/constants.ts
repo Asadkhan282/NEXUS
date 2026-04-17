@@ -7,6 +7,7 @@ export const MODELS = {
   RESEARCH: "gemini-2.0-flash",
   SONNET_BRIDGE: "gemini-2.0-pro-exp",
   OPUS_BRIDGE: "gemini-2.0-pro-exp",
+  TTS: "gemini-3.1-flash-tts-preview",
 };
 
 export const MODEL_LABELS: Record<string, string> = {
@@ -19,4 +20,5 @@ export const MODEL_LABELS: Record<string, string> = {
   "gemini-3.1-flash-image-preview": "Gemini 3.1 Image",
   "gemini-1.5-pro": "Gemini 1.5 Pro",
   "gemini-1.5-flash": "Gemini 1.5 Flash",
+  "gemini-3.1-flash-tts-preview": "Neural Voice Core",
 };

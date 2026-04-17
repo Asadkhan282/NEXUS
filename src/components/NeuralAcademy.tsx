@@ -102,6 +102,21 @@ const modules: Module[] = [
       { id: 'e2', title: 'Data Privacy', duration: '4 min', content: 'Understanding how your data is handled and protected within the neural link.' },
       { id: 'e3', title: 'The Future of Alignment', duration: '3 min', content: 'Ensuring AI goals remain aligned with human values as intelligence scales.' }
     ]
+  },
+  {
+    id: 'training_mastery',
+    title: 'Neural Mastery: Training',
+    description: 'Master the process of Knowledge Ingestion and Synthetic Fine-tuning to create custom intelligence profiles.',
+    icon: Brain,
+    color: 'text-nexus-accent',
+    bg: 'bg-nexus-accent/10',
+    duration: '30 min',
+    difficulty: 'Advanced',
+    lessons: [
+      { id: 't1', title: 'Knowledge Core Ingestion', duration: '10 min', content: 'Learn how to upload and index custom datasets to expand the model\'s retrieval context. This allows NEXUS to answer questions about your specific projects or data.' },
+      { id: 't2', title: 'Synthetic Dataset Synthesis', duration: '10 min', content: 'Creating Ground Truth examples. By providing pairs of high-quality prompts and completions, you can steer the model\'s tone and technical precision.' },
+      { id: 't3', title: 'Weight Optimization Cycle', duration: '10 min', content: 'Executing training runs. Understand how the model recalculates its local weights to align with your newly ingested data.' }
+    ]
   }
 ];
 

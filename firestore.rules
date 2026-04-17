@@ -97,6 +97,21 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
+    function isValidTask(data) {
+      return data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             data.completed is bool &&
+             data.order is number &&
+             data.createdAt is number;
+    }
+
+    function isValidMotionHistory(data) {
+      return data.prompt is string && data.prompt.size() > 0 && data.prompt.size() < 2000 &&
+             data.status in ['processing', 'completed', 'failed'] &&
+             data.createdAt is number &&
+             (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() < 2000)) &&
+             (!('operationId' in data) || data.operationId is string);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -117,6 +132,20 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidArchitecture(request.resource.data);
         allow update: if isOwner(userId) && isValidArchitecture(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTask(request.resource.data);
+        allow update: if isOwner(userId) && isValidTask(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /motion_history/{historyId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMotionHistory(request.resource.data);
+        allow update: if isOwner(userId) && isValidMotionHistory(request.resource.data);
         allow delete: if isOwner(userId);
       }
 

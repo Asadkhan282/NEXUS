@@ -60,9 +60,15 @@ const components = [
   { id: 'peltier', name: 'Peltier Cooler', type: 'Thermal', status: 'Active', category: 'Power' }
 ];
 
-export default function NeuralSilicon() {
+interface NeuralSiliconProps {
+  setActiveTab?: (tab: string) => void;
+}
+
+export default function NeuralSilicon({ setActiveTab }: NeuralSiliconProps) {
   const { user } = useAuth();
   const [placedComponents, setPlacedComponents] = React.useState<any[]>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = React.useState<number | null>(null);
+  const [filter, setFilter] = React.useState('Logic');
   const [isSimulating, setIsSimulating] = React.useState(false);
   const [aiFeedback, setAiFeedback] = React.useState("Initialize your architecture by adding components from the Silicon Library.");
   const [clockSpeed, setClockSpeed] = React.useState(0);
@@ -127,11 +133,19 @@ export default function NeuralSilicon() {
     const newComp = {
       ...comp,
       instanceId: Date.now(),
-      x: Math.random() * 200 - 100,
-      y: Math.random() * 100 - 50
+      x: 0,
+      y: 0
     };
-    setPlacedComponents(prev => [...prev, newComp]);
-    updateAiFeedback([...placedComponents, newComp]);
+    const nextState = [...placedComponents, newComp];
+    setPlacedComponents(nextState);
+    updateAiFeedback(nextState);
+    showNotify(`Integrated ${comp.name} into architecture`);
+  };
+
+  const updateComponentPosition = (id: number, x: number, y: number) => {
+    setPlacedComponents(prev => prev.map(c => 
+      c.instanceId === id ? { ...c, x, y } : c
+    ));
   };
 
   const updateAiFeedback = (currentComponents: any[]) => {
@@ -196,7 +210,11 @@ export default function NeuralSilicon() {
   };
 
   const exitSilicon = () => {
-    window.dispatchEvent(new CustomEvent('nexus-switch-tab', { detail: 'dashboard' }));
+    if (setActiveTab) {
+      setActiveTab('dashboard');
+    } else {
+      window.dispatchEvent(new CustomEvent('nexus-switch-tab', { detail: 'dashboard' }));
+    }
   };
 
   return (
@@ -242,13 +260,25 @@ export default function NeuralSilicon() {
                     <div 
                       key={comp.id} 
                       onClick={() => addComponent(comp)}
-                      className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-nexus-accent/30 transition-all cursor-pointer group"
+                      className={cn(
+                        "p-4 rounded-2xl bg-white/5 border transition-all cursor-pointer group relative overflow-hidden",
+                        filter === cat ? "border-nexus-accent/30 bg-white/10" : "border-white/5 hover:border-nexus-accent/30 hover:bg-white/10"
+                      )}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-white group-hover:text-nexus-accent transition-colors">{comp.name}</span>
-                        <span className="text-[8px] text-nexus-accent font-bold uppercase">{comp.status}</span>
+                      <div className="absolute top-0 right-0 p-2 opacity-5 scale-150 rotate-12 group-hover:opacity-10 transition-opacity">
+                        <Microchip className="w-8 h-8" />
                       </div>
-                      <span className="text-[9px] text-nexus-text-dim">{comp.type}</span>
+                      <div className="flex items-center justify-between mb-2 relative z-10">
+                        <span className="text-xs font-bold text-white group-hover:text-nexus-accent transition-colors">{comp.name}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1 h-1 rounded-full bg-nexus-accent animate-pulse" />
+                          <span className="text-[8px] text-nexus-accent font-bold uppercase tracking-widest">{comp.status}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 relative z-10">
+                        <span className="text-[9px] text-nexus-text-dim px-2 py-0.5 rounded-md bg-white/5 border border-white/5">{comp.type}</span>
+                        <span className="text-[9px] text-nexus-text-dim px-2 py-0.5 rounded-md bg-white/5 border border-white/5">v4.2</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -266,19 +296,63 @@ export default function NeuralSilicon() {
             
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative w-full h-full">
+                {/* Advanced Workspace Navigation Bar */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-1 glass px-4 py-2 rounded-2xl border border-white/10 shadow-2xl z-30">
+                  {[
+                    { id: 'Logic', icon: Cpu, label: 'Logic' },
+                    { id: 'Memory', icon: Database, label: 'Memory' },
+                    { id: 'Fabric', icon: CircuitBoard, label: 'Fabric' },
+                    { id: 'Power', icon: Activity, label: 'Analysis' }
+                  ].map((btn) => (
+                    <button
+                      key={btn.id}
+                      onClick={() => setFilter(btn.id)}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-1.5 rounded-xl transition-all group",
+                        filter === btn.id ? "bg-nexus-accent/10 text-white" : "hover:bg-white/5 text-nexus-text-dim hover:text-white"
+                      )}
+                    >
+                      <btn.icon className={cn("w-3.5 h-3.5 group-hover:scale-110 transition-transform", filter === btn.id ? "text-nexus-accent" : "text-nexus-text-dim")} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{btn.label}</span>
+                    </button>
+                  ))}
+                  <div className="w-[1px] h-4 bg-white/10 mx-2" />
+                  <button 
+                    onClick={toggleSimulation}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-1.5 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest",
+                      isSimulating ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-nexus-accent/10 text-nexus-accent border border-nexus-accent/20"
+                    )}
+                  >
+                    {isSimulating ? <X className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    {isSimulating ? 'Stop Sync' : 'Initialize'}
+                  </button>
+                </div>
+
                 <AnimatePresence>
                   {placedComponents.map((comp) => (
                     <motion.div
                       key={comp.instanceId}
                       drag
                       dragMomentum={false}
+                      onDragEnd={(_, info) => {
+                        updateComponentPosition(comp.instanceId, comp.x + info.offset.x, comp.y + info.offset.y);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedInstanceId(comp.instanceId);
+                      }}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="absolute p-4 rounded-xl glass border border-nexus-accent/30 cursor-move group"
+                      className={cn(
+                        "absolute p-4 rounded-xl glass border transition-all cursor-move group",
+                        selectedInstanceId === comp.instanceId ? "border-nexus-accent shadow-[0_0_15px_rgba(0,242,255,0.3)] z-10" : "border-nexus-accent/30"
+                      )}
                       style={{ 
                         left: `calc(50% + ${comp.x + canvasOffset.x}px)`, 
-                        top: `calc(50% + ${comp.y + canvasOffset.y}px)` 
+                        top: `calc(50% + ${comp.y + canvasOffset.y}px)`,
+                        touchAction: 'none'
                       }}
                     >
                       <button 
@@ -304,10 +378,10 @@ export default function NeuralSilicon() {
                         />
                       )}
                       {showThermal && (
-                        <div className="absolute inset-0 bg-red-500/20 rounded-xl animate-pulse pointer-events-none" />
+                        <div className="absolute inset-0 bg-red-500/10 rounded-xl animate-pulse pointer-events-none z-[-1]" />
                       )}
                       {showPower && (
-                        <div className="absolute inset-0 bg-yellow-500/10 rounded-xl animate-pulse pointer-events-none" />
+                        <div className="absolute inset-0 bg-yellow-500/10 rounded-xl animate-pulse pointer-events-none z-[-1]" />
                       )}
                     </motion.div>
                   ))}
@@ -367,11 +441,19 @@ export default function NeuralSilicon() {
             </div>
 
             {/* Toolbar */}
-            <div className="absolute top-6 right-6 flex flex-col gap-2">
-              <button className="p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors">
+            <div className="absolute top-6 right-6 flex flex-col gap-2 z-30">
+              <button 
+                onClick={() => setFilter('')}
+                className="p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors"
+                title="Search Components"
+              >
                 <Search className="w-5 h-5" />
               </button>
-              <button className="p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors">
+              <button 
+                onClick={autoOptimize}
+                className="p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors"
+                title="Auto Layout"
+              >
                 <Layers className="w-5 h-5" />
               </button>
               <button 

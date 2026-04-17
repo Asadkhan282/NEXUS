@@ -699,26 +699,84 @@ export default function NeuralArchitect({
                   <label className="block text-xs font-bold text-nexus-text-dim uppercase tracking-widest mb-2">
                     Active Core Model
                   </label>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-3">
                     {[
-                      { id: MODELS.GENERAL, label: MODEL_LABELS[MODELS.GENERAL], desc: 'Balanced performance for general tasks' },
-                      { id: MODELS.THINKING, label: MODEL_LABELS[MODELS.THINKING], desc: 'Advanced reasoning and logic' },
-                      { id: MODELS.CODING, label: MODEL_LABELS[MODELS.CODING], desc: 'Optimized for software architecture' },
+                      { 
+                        id: MODELS.GENERAL, 
+                        label: MODEL_LABELS[MODELS.GENERAL], 
+                        desc: 'Neural acceleration optimized for speed and multimodal efficiency. Ideal for rapid prototyping and real-time chat.',
+                        icon: Zap,
+                        color: 'text-nexus-accent',
+                        stats: '2.0M Context • Low Latency',
+                        longDesc: 'The Flash core is engineered for rapid high-volume synthesis. It excels in real-time interactions, automated content bridging, and low-latency API integrations.'
+                      },
+                      { 
+                        id: MODELS.THINKING, 
+                        label: MODEL_LABELS[MODELS.THINKING], 
+                        desc: 'Advanced reasoning module with extended chain-of-thought processing. Superior for complex logic, math, and deep analysis.',
+                        icon: Brain,
+                        color: 'text-nexus-purple',
+                        stats: 'Think-Enabled • High Precision',
+                        longDesc: 'The Thinking core utilizes advanced chain-of-thought algorithms to solve multi-step problems. It provides deep reasoning trajectories before delivering definitive insights.'
+                      },
+                      { 
+                        id: MODELS.CODING, 
+                        label: MODEL_LABELS[MODELS.CODING], 
+                        desc: 'Enterprise-grade intelligence for software architecture and complex system design. Exceptional instruction following.',
+                        icon: Code2,
+                        color: 'text-blue-400',
+                        stats: 'Large Context • Max IQ',
+                        longDesc: 'The Pro core is the definitive Nexus architect. Optimized for massive codebases, high-precision engineering, and following complex multi-layered technical instructions.'
+                      },
                     ].map((m) => (
                       <button
                         key={m.id}
                         onClick={() => onUpdateModel(m.id)}
                         className={cn(
-                          "flex flex-col p-3 rounded-xl border transition-all text-left",
+                          "group relative flex items-start gap-4 p-4 rounded-2xl border transition-all text-left overflow-hidden",
                           selectedModel === m.id
-                            ? "bg-nexus-accent/10 border-nexus-accent"
+                            ? "bg-nexus-accent/10 border-nexus-accent shadow-[0_0_15px_rgba(0,242,255,0.1)]"
                             : "bg-white/5 border-white/5 hover:border-white/20"
                         )}
                       >
-                        <span className={cn("text-xs font-bold", selectedModel === m.id ? "text-nexus-accent" : "text-white")}>
-                          {m.label}
-                        </span>
-                        <span className="text-[10px] text-nexus-text-dim mt-0.5">{m.desc}</span>
+                        <div className={cn(
+                          "p-2 rounded-xl bg-white/5 transition-colors group-hover:bg-white/10",
+                          selectedModel === m.id ? m.color : "text-nexus-text-dim"
+                        )}>
+                          <m.icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={cn("text-sm font-bold", selectedModel === m.id ? "text-white" : "text-nexus-text-dim")}>
+                              {m.label}
+                            </span>
+                            {selectedModel === m.id && (
+                              <div className="flex items-center gap-1">
+                                <div className="w-1 h-1 rounded-full bg-nexus-accent animate-pulse" />
+                                <span className="text-[8px] text-nexus-accent font-bold uppercase tracking-widest">Active</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-nexus-text-dim leading-relaxed mb-2">
+                            {m.desc}
+                          </p>
+                          <div className="hidden group-hover:block absolute top-[10%] left-full ml-4 w-64 glass p-4 rounded-2xl border border-nexus-accent/30 z-[100] pointer-events-none shadow-2xl animate-in fade-in slide-in-from-left-2">
+                            <div className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest mb-2">Neural Directive</div>
+                            <p className="text-[11px] text-white leading-relaxed italic">
+                              {m.longDesc}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[9px] font-mono text-white/40 uppercase tracking-tighter">
+                              {m.stats}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Status bar */}
+                        {selectedModel === m.id && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-nexus-accent" />
+                        )}
                       </button>
                     ))}
                   </div>

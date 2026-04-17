@@ -31,6 +31,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   groundingMetadata?: any;
   videoOperation?: any;
+  audioData?: string;
 }
 
 export interface ChatSession {
@@ -73,4 +74,21 @@ export interface GalleryImage {
   aspectRatio: string;
   createdAt: number;
   isLocal: boolean;
+}
+
+export interface NeuralTask {
+  id: string;
+  text: string;
+  completed: boolean;
+  order: number;
+  createdAt: number;
+}
+
+export interface MotionHistoryItem {
+  id: string;
+  prompt: string;
+  videoUrl?: string;
+  status: 'processing' | 'completed' | 'failed';
+  createdAt: number;
+  operationId?: string;
 }

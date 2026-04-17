@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   LayoutGrid,
-  MessageSquare, 
+  MessageSquare,
+  ListChecks,
   Code2, 
   Image as ImageIcon, 
   Video, 
@@ -19,6 +20,7 @@ import {
   Grid,
   Palette,
   BookOpen,
+  Brain,
   Beaker,
   Sparkles,
   Newspaper,
@@ -26,7 +28,8 @@ import {
   ArrowLeft,
   User,
   Activity,
-  Trash2
+  Trash2,
+  Users
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import NeuralBackground from './NeuralBackground';
@@ -82,8 +85,11 @@ export default function Layout({ children, activeTab, setActiveTab, onNewSession
   const navItems = [
     { id: 'dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { id: 'chat', icon: MessageSquare, label: 'Neural Chat' },
+    { id: 'tasks', icon: ListChecks, label: 'Neural Tasks' },
     { id: 'canvas', icon: Palette, label: 'Neural Canvas' },
     { id: 'academy', icon: BookOpen, label: 'Neural Academy' },
+    { id: 'training', icon: Brain, label: 'Neural Training' },
+    { id: 'agency', icon: Users, label: 'Neural Agency' },
     { id: 'lab', icon: Beaker, label: 'Neural Lab' },
     { id: 'news', icon: Newspaper, label: 'Neural News' },
     { id: 'silicon', icon: Microchip, label: 'Neural Silicon' },

@@ -22,6 +22,33 @@ const projects = [
 ];
 
 export default function NeuralCode() {
+  const [selectedFile, setSelectedFile] = React.useState('server.ts');
+  const [activeProject, setActiveProject] = React.useState('nexus-core-v3');
+
+  const files = {
+    'server.ts': `import express from 'express';
+import { initializeApp } from 'firebase/app';
+
+const app = express();
+const PORT = 3000;
+
+// Initialize Neural Link
+app.listen(PORT, () => {
+  console.log(\`Neural Core Online on port \${PORT}\`);
+});`,
+    'types.ts': `export interface NeuralNode {
+  id: string;
+  type: 'logic' | 'memory' | 'fabric';
+  weights: Float32Array;
+  bias: number;
+}`,
+    'main.rs': `fn main() {
+    println!("Initializing Neural Canvas Engine...");
+    let mut core = NeuralCore::new();
+    core.sync();
+}`
+  };
+
   return (
     <div className="h-full flex flex-col p-4 md:p-8 overflow-hidden">
       <div className="mb-8 flex items-center justify-between">
@@ -45,7 +72,14 @@ export default function NeuralCode() {
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {projects.map((project) => (
-              <button key={project.id} className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group">
+              <button 
+                key={project.id} 
+                onClick={() => setActiveProject(project.name)}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-xl transition-colors group",
+                  activeProject === project.name ? "bg-nexus-accent/10 border border-nexus-accent/20" : "hover:bg-white/5"
+                )}
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
                     <Braces className="w-4 h-4 text-nexus-accent" />
@@ -55,20 +89,40 @@ export default function NeuralCode() {
                     <div className="text-[9px] text-nexus-text-dim">{project.language}</div>
                   </div>
                 </div>
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full bg-green-500 transition-opacity",
+                  activeProject === project.name ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                )} />
+              </button>
+            ))}
+            
+            <div className="pt-4 px-2 pb-2">
+              <span className="text-[8px] font-bold text-nexus-text-dim uppercase tracking-widest">Recent Files</span>
+            </div>
+            {Object.keys(files).map(file => (
+              <button 
+                key={file}
+                onClick={() => setSelectedFile(file)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-2 rounded-lg text-[10px] transition-all",
+                  selectedFile === file ? "bg-white/10 text-white" : "text-nexus-text-dim hover:text-white hover:bg-white/5"
+                )}
+              >
+                <FileCode className="w-3.5 h-3.5" />
+                {file}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Editor Placeholder */}
+        {/* Editor */}
         <div className="lg:col-span-3 flex flex-col gap-6 overflow-hidden">
           <div className="flex-1 glass rounded-3xl border border-white/10 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/20">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10">
                   <FileCode className="w-3 h-3 text-nexus-accent" />
-                  <span className="text-[10px] font-bold text-white">server.ts</span>
+                  <span className="text-[10px] font-bold text-white tracking-widest uppercase">{selectedFile}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -84,58 +138,24 @@ export default function NeuralCode() {
               </div>
             </div>
             <div className="flex-1 p-6 font-mono text-sm overflow-y-auto bg-black/40">
-              <div className="space-y-1">
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">1</span>
-                  <span className="text-nexus-purple">import</span>
-                  <span className="text-white">express</span>
-                  <span className="text-nexus-purple">from</span>
-                  <span className="text-nexus-accent">'express'</span>
-                  <span className="text-white">;</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">2</span>
-                  <span className="text-nexus-purple">import</span>
-                  <span className="text-white">{"{ initializeApp }"}</span>
-                  <span className="text-nexus-purple">from</span>
-                  <span className="text-nexus-accent">'firebase/app'</span>
-                  <span className="text-white">;</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">3</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">4</span>
-                  <span className="text-nexus-purple">const</span>
-                  <span className="text-white">app = express();</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">5</span>
-                  <span className="text-nexus-purple">const</span>
-                  <span className="text-white">PORT = 3000;</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">6</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">7</span>
-                  <span className="text-white/40">// Initialize Neural Link</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">8</span>
-                  <span className="text-white">app.listen(PORT, () ={">"} {"{"}</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">9</span>
-                  <span className="ml-4 text-white">console.log(</span>
-                  <span className="text-nexus-accent">`Neural Core Online on port ${'{'}PORT{'}'}`</span>
-                  <span className="text-white">);</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-white/20 select-none w-4">10</span>
-                  <span className="text-white">{"}"});</span>
-                </div>
-              </div>
+              <pre className="text-white">
+                <code>
+                  {(files as any)[selectedFile].split('\n').map((line: string, i: number) => (
+                    <div key={i} className="flex gap-4">
+                      <span className="text-white/10 select-none w-4 text-right pr-2">{i + 1}</span>
+                      <span className={cn(
+                        line.includes('import') || line.includes('const') || line.includes('fn') || line.includes('let') || line.includes('mut')
+                          ? "text-nexus-purple" 
+                          : line.includes("'") || line.includes('"')
+                            ? "text-nexus-accent"
+                            : "text-white"
+                      )}>
+                        {line}
+                      </span>
+                    </div>
+                  ))}
+                </code>
+              </pre>
             </div>
           </div>
 

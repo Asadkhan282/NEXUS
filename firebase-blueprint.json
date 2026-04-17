@@ -60,6 +60,31 @@
         "createdAt": { "type": "number", "description": "Timestamp of creation." }
       },
       "required": ["name", "components", "createdAt"]
+    },
+    "NeuralTask": {
+      "title": "Neural Task",
+      "description": "A task or objective for the user.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "description": "Task content." },
+        "completed": { "type": "boolean", "description": "Completion status." },
+        "order": { "type": "number", "description": "Sort order." },
+        "createdAt": { "type": "number", "description": "Creation timestamp." }
+      },
+      "required": ["text", "completed", "order", "createdAt"]
+    },
+    "MotionHistoryItem": {
+      "title": "Motion History Item",
+      "description": "A generated video generation history item.",
+      "type": "object",
+      "properties": {
+        "prompt": { "type": "string", "description": "Prompt used for generation." },
+        "status": { "type": "string", "enum": ["processing", "completed", "failed"], "description": "Generation status." },
+        "createdAt": { "type": "number", "description": "Timestamp of creation." },
+        "videoUrl": { "type": "string", "description": "URL of the generated video." },
+        "operationId": { "type": "string", "description": "LRO operation ID." }
+      },
+      "required": ["prompt", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -82,6 +107,14 @@
     "/users/{userId}/architectures/{archId}": {
       "schema": "NeuralArchitecture",
       "description": "User's custom silicon architectures."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "NeuralTask",
+      "description": "User's tasks."
+    },
+    "/users/{userId}/motion_history/{historyId}": {
+      "schema": "MotionHistoryItem",
+      "description": "User's video generation history."
     }
   }
 }
