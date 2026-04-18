@@ -9,9 +9,11 @@ import {
   Copy,
   Check,
   Eye,
-  Settings
+  Settings,
+  FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { exportArtifactToPDF } from '../lib/pdf';
 
 interface Artifact {
   id: string;
@@ -81,11 +83,11 @@ export default function NeuralArtifacts({ artifacts, onClose, activeId, onSelect
             {isCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
           </button>
           <button 
-            onClick={downloadContent}
-            className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-all"
-            title="Download"
+            onClick={() => activeArtifact && exportArtifactToPDF(activeArtifact.type, activeArtifact.title, activeArtifact.content)}
+            className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-all group relative"
+            title="Export to PDF"
           >
-            <Download className="w-4 h-4" />
+            <FileText className="w-4 h-4 group-hover:text-nexus-accent transition-colors" />
           </button>
           <div className="w-[1px] h-4 bg-white/10 mx-2" />
           <button 

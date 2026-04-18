@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Beaker, 
   Zap, 
@@ -58,10 +58,12 @@ export default function NeuralLab() {
   const [isRunningBenchmark, setIsRunningBenchmark] = React.useState(false);
   const [benchmarkProgress, setBenchmarkProgress] = React.useState(0);
   const [telemetryData, setTelemetryData] = React.useState([40, 70, 45, 90, 65, 80, 55, 75, 50, 85, 60, 95, 70, 40, 60, 80]);
+  const [syntheticResult, setSyntheticResult] = React.useState<string | null>(null);
 
   const runBenchmark = () => {
     setIsRunningBenchmark(true);
     setBenchmarkProgress(0);
+    setSyntheticResult(null);
     
     const interval = setInterval(() => {
       setBenchmarkProgress(prev => {
@@ -70,6 +72,12 @@ export default function NeuralLab() {
           setIsRunningBenchmark(false);
           // Randomize telemetry after benchmark
           setTelemetryData(prevData => prevData.map(() => Math.floor(Math.random() * 60) + 40));
+          
+          setSyntheticResult(Math.random() > 0.5 
+            ? `// Synthetic Neural Logic v2.4\nfunction synthesize(dna) {\n  return dna.map(x => Math.atan2(x.y, x.x));\n}`
+            : `VISION_SYNTHESIS_COMPLETE: { "objects": ["quantum_core", "neural_lattice"], "confidence": 0.998 }`
+          );
+          
           return 100;
         }
         return prev + 2;
@@ -95,22 +103,46 @@ export default function NeuralLab() {
       </div>
 
       <div className="flex-1 overflow-y-auto pr-2 no-scrollbar">
-        {isRunningBenchmark && (
+        <AnimatePresence>
+          {isRunningBenchmark && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-8 p-4 rounded-2xl bg-nexus-accent/10 border border-nexus-accent/20"
+            >
+              <div className="flex justify-between mb-2">
+                <span className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest">Neural Stress Test in Progress</span>
+                <span className="text-[10px] font-mono text-nexus-accent">{benchmarkProgress}%</span>
+              </div>
+              <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-nexus-accent shadow-[0_0_10px_#00f5ff]"
+                  style={{ width: `${benchmarkProgress}%` }}
+                />
+              </div>
+              {benchmarkProgress > 30 && (
+                <div className="mt-4 font-mono text-[10px] text-white/40 animate-pulse">
+                  [{'>'}] Analyzing core temperatures... 54°C :: STABLE
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {syntheticResult && (
           <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 rounded-2xl bg-nexus-accent/10 border border-nexus-accent/20"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-8 p-6 rounded-3xl glass border border-nexus-accent/30 bg-nexus-accent/5 overflow-hidden relative"
           >
-            <div className="flex justify-between mb-2">
-              <span className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest">Neural Stress Test in Progress</span>
-              <span className="text-[10px] font-mono text-nexus-accent">{benchmarkProgress}%</span>
+            <div className="absolute top-0 right-0 p-4">
+              <Sparkles className="w-5 h-5 text-nexus-accent animate-pulse" />
             </div>
-            <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-nexus-accent"
-                style={{ width: `${benchmarkProgress}%` }}
-              />
-            </div>
+            <h3 className="text-xs font-bold text-nexus-accent uppercase tracking-widest mb-4">Latest Synthetic Yield</h3>
+            <pre className="text-xs font-mono text-white/90 whitespace-pre-wrap leading-relaxed">
+              <code>{syntheticResult}</code>
+            </pre>
           </motion.div>
         )}
 

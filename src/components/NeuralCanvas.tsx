@@ -18,7 +18,8 @@ import {
   X,
   Video,
   Clapperboard,
-  FileCode
+  FileCode,
+  Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { generateImage, generateVideo, getVideoStatus, fetchVideoBlob, generateResponse } from '../services/gemini';
@@ -33,11 +34,13 @@ export default function NeuralCanvas() {
   const [zoom, setZoom] = React.useState(1);
   const [isPanning, setIsPanning] = React.useState(false);
   const [showAiPrompt, setShowAiPrompt] = React.useState(false);
+  const [promptMode, setPromptMode] = React.useState<'object' | 'vision'>('object');
   const [aiPrompt, setAiPrompt] = React.useState('');
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = React.useState(false);
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [videoStatus, setVideoStatus] = React.useState<string>('');
+  const [lastGeneratedUrl, setLastGeneratedUrl] = React.useState<string | null>(null);
   const [motionStyle, setMotionStyle] = React.useState<'cinematic' | 'cyberpunk' | 'cinematic-cyberpunk' | 'abstract' | 'blueprint' | 'surreal' | 'minimalist'>('cinematic');
 
   const MOTION_STYLES = [
@@ -208,25 +211,41 @@ export default function NeuralCanvas() {
     if (!aiPrompt.trim() || !fabricCanvas) return;
     
     setIsGenerating(true);
-    setVideoStatus('Synthesizing Neural Object...');
+    setVideoStatus(promptMode === 'object' ? 'Synthesizing Neural Object...' : 'Synthesizing Neural Vision...');
     try {
       const userKey = localStorage.getItem('nexus_user_key') || undefined;
       
-      // 1. Use Gemini to refine the prompt for a high-quality isolated object
-      const refinedPromptResponse = await generateResponse(
-        `Refine this object description for a high-quality 3D asset generation: "${aiPrompt}". 
-        The asset should be isolated on a solid, pure white background, centered, with professional studio lighting and high-resolution textures. 
-        Return ONLY the refined prompt.`,
-        [],
-        MODELS.GENERAL,
-        { temperature: 0.7 },
-        userKey
-      );
-      
-      const refinedPrompt = refinedPromptResponse.candidates?.[0]?.content?.parts?.[0]?.text || aiPrompt;
+      let finalPrompt = aiPrompt;
+
+      if (promptMode === 'object') {
+        // 1. Use Gemini to refine the prompt for a high-quality isolated object
+        const refinedPromptResponse = await generateResponse(
+          `Refine this object description for a high-quality 3D asset generation: "${aiPrompt}". 
+          The asset should be isolated on a solid, pure white background, centered, with professional studio lighting and high-resolution textures. 
+          Return ONLY the refined prompt.`,
+          [],
+          MODELS.GENERAL,
+          { temperature: 0.7 },
+          userKey
+        );
+        finalPrompt = refinedPromptResponse.candidates?.[0]?.content?.parts?.[0]?.text || aiPrompt;
+      } else {
+        // Full Vision Refinement
+        const refinedPromptResponse = await generateResponse(
+          `Refine this image description for a high-quality cinematic visual: "${aiPrompt}". 
+          The description should be evocative, detailed, and specify lighting, composition, and mood. 
+          Return ONLY the refined prompt.`,
+          [],
+          MODELS.GENERAL,
+          { temperature: 0.8 },
+          userKey
+        );
+        finalPrompt = refinedPromptResponse.candidates?.[0]?.content?.parts?.[0]?.text || aiPrompt;
+      }
       
       // 2. Generate the image
-      const imageUrl = await generateImage(refinedPrompt, "1:1", userKey);
+      const imageUrl = await generateImage(finalPrompt, "1:1", userKey);
+      setLastGeneratedUrl(imageUrl);
       
       // 3. Load into Fabric
       // @ts-ignore - Fabric 6/7 usage
@@ -391,6 +410,15 @@ export default function NeuralCanvas() {
               { id: 'rect', icon: Square, label: 'Rect', action: addRect },
               { id: 'circle', icon: Circle, label: 'Circle', action: addCircle },
               { id: 'text', icon: Type, label: 'Text', action: addText },
+              { 
+                id: 'vision', 
+                icon: ImageIcon, 
+                label: 'Vision Gen', 
+                action: () => {
+                  setPromptMode('vision');
+                  setShowAiPrompt(true);
+                } 
+              },
             ].map((tool) => (
               <button
                 key={tool.id}
@@ -484,7 +512,10 @@ export default function NeuralCanvas() {
             Motion
           </button>
           <button 
-            onClick={() => setShowAiPrompt(true)}
+            onClick={() => {
+              setPromptMode('object');
+              setShowAiPrompt(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-nexus-accent text-nexus-bg font-bold text-sm hover:opacity-90 transition-all shadow-[0_0_20px_rgba(0,242,255,0.2)]"
           >
             <Sparkles className="w-4 h-4" />
@@ -575,16 +606,54 @@ export default function NeuralCanvas() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-nexus-accent" />
-                  <h3 className="text-sm font-bold text-white tracking-tight">Synthesize Neural Object</h3>
+                  {promptMode === 'object' ? <Sparkles className="w-4 h-4 text-nexus-accent" /> : <ImageIcon className="w-4 h-4 text-nexus-accent" />}
+                  <h3 className="text-sm font-bold text-white tracking-tight">
+                    {promptMode === 'object' ? 'Synthesize Neural Object' : 'Generate Neural Vision'}
+                  </h3>
                 </div>
-                <button 
-                  onClick={() => setShowAiPrompt(false)}
-                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4 text-nexus-text-dim" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 mr-2">
+                    <button 
+                      onClick={() => setPromptMode('object')}
+                      className={cn(
+                        "px-2 py-1 rounded-md text-[8px] font-bold uppercase transition-all",
+                        promptMode === 'object' ? "bg-nexus-accent text-nexus-bg" : "text-nexus-text-dim hover:text-white"
+                      )}
+                    >
+                      Object
+                    </button>
+                    <button 
+                      onClick={() => setPromptMode('vision')}
+                      className={cn(
+                        "px-2 py-1 rounded-md text-[8px] font-bold uppercase transition-all",
+                        promptMode === 'vision' ? "bg-nexus-accent text-nexus-bg" : "text-nexus-text-dim hover:text-white"
+                      )}
+                    >
+                      Vision
+                    </button>
+                  </div>
+                  <button 
+                    onClick={() => setShowAiPrompt(false)}
+                    className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4 text-nexus-text-dim" />
+                  </button>
+                </div>
               </div>
+
+              {lastGeneratedUrl && (
+                <div className="mb-4 rounded-xl overflow-hidden border border-white/10 aspect-square group relative">
+                  <img src={lastGeneratedUrl} alt="Synthesized Object" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button 
+                      onClick={() => setLastGeneratedUrl(null)}
+                      className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="relative">
                 <input
@@ -592,7 +661,7 @@ export default function NeuralCanvas() {
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && generateAiObject()}
-                  placeholder="Describe an object (e.g., 'A futuristic drone')..."
+                  placeholder={promptMode === 'object' ? "Describe an object (e.g., 'A futuristic drone')..." : "Enter vision prompt (e.g., 'Cyberpunk city at night')..."}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-nexus-accent outline-none transition-all pr-12"
                   autoFocus
                 />

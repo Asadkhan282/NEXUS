@@ -69,7 +69,8 @@
         "text": { "type": "string", "description": "Task content." },
         "completed": { "type": "boolean", "description": "Completion status." },
         "order": { "type": "number", "description": "Sort order." },
-        "createdAt": { "type": "number", "description": "Creation timestamp." }
+        "createdAt": { "type": "number", "description": "Creation timestamp." },
+        "dueDate": { "type": "number", "description": "Optional deadline timestamp." }
       },
       "required": ["text", "completed", "order", "createdAt"]
     },

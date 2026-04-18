@@ -14,10 +14,16 @@ import {
   Loader2,
   AlertCircle,
   History,
-  Trash2
+  Trash2,
+  Search,
+  Filter,
+  RefreshCcw,
+  CheckCircle2,
+  XCircle,
+  Clock4
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { generateVideo, getVideoStatus, fetchVideoBlob } from '../services/gemini';
+import { generateVideo, getVideoStatus, fetchVideoBlob, optimizeVideoPrompt } from '../services/gemini';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -31,6 +37,30 @@ export default function NeuralMotion() {
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
   const [history, setHistory] = React.useState<MotionHistoryItem[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'completed' | 'processing' | 'failed'>('all');
+  const [hasPlatformKey, setHasPlatformKey] = React.useState(false);
+  const [isOptimizing, setIsOptimizing] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkKey = async () => {
+      // @ts-ignore
+      if (window.aistudio?.hasSelectedApiKey) {
+        // @ts-ignore
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasPlatformKey(hasKey);
+      }
+    };
+    checkKey();
+    const interval = setInterval(checkKey, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredHistory = history.filter(item => {
+    const matchesSearch = item.prompt.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   React.useEffect(() => {
     if (!user) return;
@@ -53,6 +83,13 @@ export default function NeuralMotion() {
 
   const handleSynthesize = async () => {
     if (!prompt.trim() || !user) return;
+
+    // Fast-path for keyless users: trigger simulation immediately
+    const activeUserKey = localStorage.getItem('nexus_user_key');
+    if (!hasPlatformKey && !activeUserKey) {
+      handleSimulate();
+      return;
+    }
     
     setIsRendering(true);
     setError(null);
@@ -104,13 +141,24 @@ export default function NeuralMotion() {
             throw new Error("Video generation completed but no URI was found.");
           }
         } catch (err: any) {
-          console.error("Video polling failed:", err);
-          setError(err.message || "Neural Desync: Motion synthesis failed during rendering.");
+          // If polling fails with auth issue, try simulation
+          const isAuthError = err.message?.includes("403") || 
+                             err.message?.includes("Access Denied") || 
+                             err.message?.includes("PERMISSION_DENIED");
           
-          if (historyId) {
-            await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
-              status: 'failed'
-            });
+          if (isAuthError) {
+            if (historyId) {
+              try { await deleteDoc(doc(db, 'users', user.uid, 'motion_history', historyId)); } catch (e) {}
+            }
+            handleSimulate();
+          } else {
+            console.error("Video polling failed:", err);
+            setError(err.message || "Neural Desync: Motion synthesis failed during rendering.");
+            if (historyId) {
+              await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
+                status: 'failed'
+              });
+            }
           }
         } finally {
           setIsRendering(false);
@@ -119,14 +167,26 @@ export default function NeuralMotion() {
 
       poll();
     } catch (err: any) {
-      console.error("Video generation failed:", err);
-      setError(err.message || "Failed to initialize motion synthesis.");
-      setIsRendering(false);
+      // If initialization fails with auth issue, silent fallback to simulation
+      const isAuthError = err.message?.includes("403") || 
+                         err.message?.includes("Access Denied") || 
+                         err.message?.includes("PERMISSION_DENIED") ||
+                         err.message?.includes("API_KEY_INVALID");
       
-      if (historyId) {
-        await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
-          status: 'failed'
-        });
+      if (isAuthError) {
+        if (historyId) {
+          try { await deleteDoc(doc(db, 'users', user.uid, 'motion_history', historyId)); } catch (e) {}
+        }
+        handleSimulate();
+      } else {
+        console.error("Video synthesis failed:", err);
+        setError(err.message || "Failed to initialize motion synthesis.");
+        setIsRendering(false);
+        if (historyId) {
+          await updateDoc(doc(db, 'users', user.uid, 'motion_history', historyId), {
+            status: 'failed'
+          });
+        }
       }
     }
   };
@@ -137,6 +197,70 @@ export default function NeuralMotion() {
       await deleteDoc(doc(db, 'users', user.uid, 'motion_history', id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/motion_history/${id}`);
+    }
+  };
+
+  const handleRemix = (item: MotionHistoryItem) => {
+    setPrompt(item.prompt);
+    // Scroll to the prompt input
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSimulate = async () => {
+    if (!prompt.trim() || !user) return;
+    
+    setIsRendering(true);
+    setError(null);
+    setVideoUrl(null);
+    setProgress(0);
+
+    // Neural templates (abstract cinematic loops)
+    const templates = [
+      'https://assets.mixkit.co/videos/preview/mixkit-abstract-holographic-neon-background-loop-41004-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-futuristic-scenery-of-a-planet-with-a-blue-ring-41010-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-a-blue-neural-network-41002-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-flying-over-a-futuristic-digital-mesh-41008-large.mp4'
+    ];
+
+    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+
+    let interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 300);
+
+    setTimeout(async () => {
+      setVideoUrl(randomTemplate);
+      setIsRendering(false);
+      setProgress(100);
+
+      // Save to history as simulated
+      await addDoc(collection(db, 'users', user.uid, 'motion_history'), {
+        prompt: `[SIMULATED] ${prompt.trim()}`,
+        status: 'completed',
+        createdAt: Date.now(),
+        videoUrl: randomTemplate
+      });
+
+    }, 3000);
+  };
+
+  const handleOptimizePrompt = async () => {
+    if (!prompt.trim() || isOptimizing) return;
+    setIsOptimizing(true);
+    try {
+      const userKey = localStorage.getItem('nexus_user_key') || undefined;
+      const optimized = await optimizeVideoPrompt(prompt, userKey);
+      setPrompt(optimized);
+    } catch (err) {
+      console.error("Optimization failed:", err);
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -153,7 +277,18 @@ export default function NeuralMotion() {
         {/* Controls */}
         <div className="lg:col-span-1 space-y-6 overflow-y-auto pr-2 no-scrollbar">
           <div className="glass p-6 rounded-3xl border border-white/10">
-            <label className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-widest mb-4 block">Neural Video Prompt</label>
+            <div className="flex items-center justify-between mb-4">
+              <label className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-widest block">Neural Video Prompt</label>
+              <button 
+                onClick={handleOptimizePrompt}
+                disabled={isOptimizing || isRendering || !prompt.trim()}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-nexus-accent/10 border border-nexus-accent/30 text-nexus-accent text-[9px] font-bold uppercase tracking-wider hover:bg-nexus-accent/20 transition-all disabled:opacity-50"
+                title="Optimize with Neural Assistant"
+              >
+                {isOptimizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                Optimize Vision
+              </button>
+            </div>
             <textarea 
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -185,14 +320,20 @@ export default function NeuralMotion() {
                   <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                   <p className="text-[10px] text-red-400 leading-relaxed">{error}</p>
                 </div>
-                {error.includes("403") && (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleSimulate()}
+                    className="flex-1 py-2 rounded-lg bg-nexus-accent/20 hover:bg-nexus-accent/30 text-nexus-accent text-[10px] font-bold transition-all border border-nexus-accent/30"
+                  >
+                    Simulate Synthesis
+                  </button>
                   <button 
                     onClick={() => (window as any).aistudio?.openSelectKey()}
-                    className="w-full py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] font-bold transition-all border border-red-500/30"
+                    className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold transition-all border border-white/10"
                   >
-                    Select Personal API Key
+                    Authorize Neural Core
                   </button>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -238,13 +379,23 @@ export default function NeuralMotion() {
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="flex-1 glass rounded-3xl border border-white/10 relative group overflow-hidden flex items-center justify-center bg-black/20">
             {videoUrl ? (
-              <video 
-                src={videoUrl} 
-                controls 
-                className="w-full h-full object-contain"
-                autoPlay
-                loop
-              />
+              <div className="relative w-full h-full">
+                <video 
+                  src={videoUrl} 
+                  controls 
+                  className="w-full h-full object-contain"
+                  autoPlay
+                  loop
+                />
+                
+                {/* Simulation Badge */}
+                {videoUrl.includes('mixkit.co') && (
+                  <div className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-nexus-accent/20 backdrop-blur-md border border-nexus-accent/40 flex items-center gap-2 z-20">
+                    <Sparkles className="w-3 h-3 text-nexus-accent animate-pulse" />
+                    <span className="text-[10px] font-bold text-white tracking-widest uppercase">Neural Simulation</span>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <img 
@@ -321,25 +472,57 @@ export default function NeuralMotion() {
 
       {/* Motion History Section */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-3">
             <History className="w-5 h-5 text-nexus-accent" />
             Motion History
           </h2>
-          <div className="text-[10px] uppercase tracking-widest text-nexus-text-dim font-bold">
-            {history.length} Visions Synthesized
+          
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-dim" />
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter visions..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs text-white placeholder:text-nexus-text-dim focus:border-nexus-accent outline-none transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 w-full sm:w-auto overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: 'All', icon: Filter },
+                { id: 'completed', label: 'Done', icon: CheckCircle2 },
+                { id: 'processing', label: 'Active', icon: Clock4 },
+                { id: 'failed', label: 'Sync Errors', icon: XCircle }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setStatusFilter(f.id as any)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+                    statusFilter === f.id ? "bg-nexus-accent text-nexus-bg" : "text-nexus-text-dim hover:text-white"
+                  )}
+                >
+                  <f.icon className="w-3 h-3" />
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {history.length === 0 ? (
+        {filteredHistory.length === 0 ? (
           <div className="glass p-12 rounded-3xl border border-white/5 flex flex-col items-center justify-center text-center opacity-40">
             <Film className="w-12 h-12 text-nexus-text-dim mb-4" />
-            <p className="text-sm font-bold uppercase tracking-widest text-white">No historical motion data detected</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-white">
+              {searchQuery || statusFilter !== 'all' ? 'No matching visions found in records' : 'No historical motion data detected'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <AnimatePresence>
-              {history.map((item) => (
+            <AnimatePresence mode="popLayout">
+              {filteredHistory.map((item) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -374,6 +557,13 @@ export default function NeuralMotion() {
                     )}
                     
                     <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleRemix(item)}
+                        className="p-2 rounded-lg bg-black/60 backdrop-blur-md text-white hover:text-nexus-accent transition-colors"
+                        title="Remix Vision"
+                      >
+                        <RefreshCcw className="w-4 h-4" />
+                      </button>
                       {item.videoUrl && (
                         <a 
                           href={item.videoUrl} 

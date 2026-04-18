@@ -51,8 +51,25 @@ export default function NeuralBackground({ config }: NeuralBackgroundProps) {
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < mouse.radius) {
           const force = (mouse.radius - distance) / mouse.radius;
-          this.x -= dx * force * 0.02;
-          this.y -= dy * force * 0.02;
+          const angle = Math.atan2(dy, dx);
+          
+          // Add rhythmic pulse to interaction
+          const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+          this.x -= Math.cos(angle) * force * (2 + pulse);
+          this.y -= Math.sin(angle) * force * (2 + pulse);
+        }
+
+        // Add subtle flow field effect
+        const time = Date.now() * 0.001;
+        this.vx += Math.sin(this.y * 0.01 + time) * 0.01;
+        this.vy += Math.cos(this.x * 0.01 + time) * 0.01;
+        
+        // Limit velocity
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const maxSpeed = 1.2;
+        if (speed > maxSpeed) {
+          this.vx = (this.vx / speed) * maxSpeed;
+          this.vy = (this.vy / speed) * maxSpeed;
         }
 
         // Randomly emit sparks
@@ -66,8 +83,12 @@ export default function NeuralBackground({ config }: NeuralBackgroundProps) {
       draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        
+        // Dynamic color based on position
+        const hue = (this.x / window.innerWidth) * 30 - 15; // Subtle shift
         ctx.fillStyle = config?.particleColor || 'rgba(0, 242, 255, 0.5)';
-        ctx.shadowBlur = config?.glowIntensity || 10;
+        
+        ctx.shadowBlur = (config?.glowIntensity || 10) * (Math.sin(Date.now() * 0.002) * 0.5 + 0.8);
         ctx.shadowColor = config?.particleColor || '#00f2ff';
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -118,6 +139,15 @@ export default function NeuralBackground({ config }: NeuralBackgroundProps) {
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw ambient scan line
+      const scanY = (Date.now() * 0.1) % canvas.height;
+      ctx.beginPath();
+      ctx.moveTo(0, scanY);
+      ctx.lineTo(canvas.width, scanY);
+      ctx.strokeStyle = `${config?.particleColor || '#00f2ff'}10`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       // Draw connections
       for (let i = 0; i < particles.length; i++) {

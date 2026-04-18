@@ -82,6 +82,7 @@ export interface NeuralTask {
   completed: boolean;
   order: number;
   createdAt: number;
+  dueDate?: number;
 }
 
 export interface MotionHistoryItem {

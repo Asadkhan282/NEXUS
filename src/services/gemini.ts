@@ -36,6 +36,27 @@ export async function validateApiKey(key: string) {
   }
 }
 
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    if (retries <= 0) throw error;
+    // Only retry on transient errors (rate limits, overloaded, etc.)
+    const isTransient = 
+      error.message?.includes('overloaded') || 
+      error.message?.includes('rate limit') || 
+      error.message?.includes('exhausted') ||
+      error.message?.includes('INTERNAL') ||
+      error.message?.includes('DEADLINE_EXCEEDED');
+
+    if (!isTransient) throw error;
+    
+    console.warn(`Neural connection unstable. Re-attempting sync... (${retries} attempts remaining)`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return withRetry(fn, retries - 1, delay * 2);
+  }
+}
+
 export async function generateResponse(
   prompt: string,
   history: ChatMessage[] = [],
@@ -44,7 +65,7 @@ export async function generateResponse(
   userApiKey?: string,
   attachments?: { mimeType: string; data: string }[]
 ) {
-  try {
+  return withRetry(async () => {
     const client = getGeminiClient(userApiKey);
     
     // Convert history to Gemini format
@@ -91,16 +112,12 @@ export async function generateResponse(
         thinkingConfig: (config?.thinkingLevel && model.toLowerCase().includes('thinking')) ? { thinkingLevel: config.thinkingLevel } : undefined,
         responseMimeType: config?.responseMimeType,
         seed: config?.seed,
-        tools: model.includes('flash') || model.includes('pro') ? [{ googleSearch: {} }] : undefined,
+        tools: (model.toLowerCase().includes('flash') || model.toLowerCase().includes('pro') || model.toLowerCase().includes('neo')) ? [{ googleSearch: {} }] : undefined,
       }
     });
 
     return response;
-  } catch (error: any) {
-    console.error("Error generating response:", error);
-    handleGeminiError(error);
-    throw error;
-  }
+  });
 }
 
 export async function* generateResponseStream(
@@ -147,7 +164,7 @@ export async function* generateResponseStream(
         maxOutputTokens: config?.maxOutputTokens ?? 8192,
         systemInstruction: `${config?.systemInstruction || "You are NEXUS, an advanced multimodal AI assistant."}${config?.useTpu ? "\n[ACCELERATION: GOOGLE TPU v5p ACTIVE]" : ""}${config?.useCuda ? "\n[ACCELERATION: CUSTOM CUDA KERNELS ACTIVE]" : ""}`,
         thinkingConfig: (config?.thinkingLevel && model.toLowerCase().includes('thinking')) ? { thinkingLevel: config.thinkingLevel } : undefined,
-        tools: model.includes('flash') || model.includes('pro') ? [{ googleSearch: {} }] : undefined,
+        tools: (model.toLowerCase().includes('flash') || model.toLowerCase().includes('pro') || model.toLowerCase().includes('neo')) ? [{ googleSearch: {} }] : undefined,
       }
     });
 
@@ -161,16 +178,31 @@ export async function* generateResponseStream(
   }
 }
 
-function handleGeminiError(error: any) {
-  const message = error.message || "";
-  const status = error.status || error.code || error.error?.code || "";
-  const statusText = error.statusText || error.error?.status || "";
+function getIsAuthError(error: any): boolean {
+  if (!error) return false;
   
-  if (status === 403 || statusText === "PERMISSION_DENIED" || message.includes("PERMISSION_DENIED") || message.includes("API_KEY_INVALID") || message.includes("invalid api key") || message.includes("No API key detected")) {
-    throw new NexusError(NexusErrorType.API_KEY_INVALID, message || "Access Denied [403]. This core requires a personal API key from a paid Google Cloud project with specific permissions (e.g., Veo/Imagen access).");
-  } else if (message.includes("Requested entity was not found")) {
-    // Per skill: If "Requested entity was not found", prompt for key selection again
-    throw new NexusError(NexusErrorType.API_KEY_INVALID, "Neural Link Reset: The selected API key is invalid or has expired. Please re-authorize using the 'Auth' button.");
+  // Check common status codes
+  const status = error.status || error.code || error.error?.code;
+  if (status === 403 || status === 401) return true;
+  
+  // Check statusText/status strings
+  const statusText = error.statusText || error.error?.status || "";
+  if (statusText === "PERMISSION_DENIED" || statusText === "UNAUTHENTICATED") return true;
+  
+  // Check message strings
+  const message = (error.message || "").toUpperCase();
+  const keywords = ["PERMISSION_DENIED", "API_KEY_INVALID", "API_KEY_NOT_FOUND", "403", "UNAUTHORIZED", "ACCESS DENIED"];
+  return keywords.some(keyword => message.includes(keyword));
+}
+
+function handleGeminiError(error: any) {
+  const isAuth = getIsAuthError(error);
+  const message = error.message || "";
+  
+  if (isAuth) {
+    throw new NexusError(NexusErrorType.API_KEY_INVALID, "Neural Core Access Denied [403]. This model requires a personal API key with the correct permissions. Please authorize using the 'Auth' button in settings.");
+  } else if (message.includes("Requested entity was not found") || message.includes("404")) {
+    throw new NexusError(NexusErrorType.UNKNOWN, "Neural Link Error [404]: The requested AI model or resource was not found. This can happen if the selected model is not available in your region or your API key doesn't have access to this specific core.");
   } else if (message.includes("SAFETY") || message.includes("blocked")) {
     throw new NexusError(NexusErrorType.SAFETY_VIOLATION, "The request was flagged by neural safety protocols.");
   } else if (message.includes("quota") || message.includes("rate limit")) {
@@ -304,7 +336,9 @@ export async function generateVideo(prompt: string, userApiKey?: string) {
 
     return operation;
   } catch (error: any) {
-    console.error("Error generating video:", error);
+    if (!getIsAuthError(error)) {
+      console.error("Error generating video:", error);
+    }
     handleGeminiError(error);
     
     const message = error.message || "";
@@ -316,6 +350,38 @@ export async function generateVideo(prompt: string, userApiKey?: string) {
   }
 }
 
+export async function optimizeVideoPrompt(prompt: string, userApiKey?: string) {
+  try {
+    const ai = getGeminiClient(userApiKey);
+    const response = await ai.models.generateContent({
+      model: MODELS.GENERAL,
+      contents: [{
+        parts: [{
+          text: `You are a cinematic prompt engineer for Veo 3.1. Enhance the following user prompt into a detailed, high-fidelity video generation prompt. 
+          Focus on:
+          1. Dramatic camera angles (e.g., dynamic drone shot, handheld intimacy, low-angle grandeur).
+          2. Specific lighting (e.g., cinematic golden hour, neon noir, volumetric fog).
+          3. Motion styles (e.g., slow-motion fluidity, glitch transitions, hyper-lapse energy).
+          4. Textural details (e.g., hyper-realistic 8k, bokeh background, particle effects).
+          
+          Return ONLY the enhanced prompt string.
+          
+          User Prompt: ${prompt}`
+        }]
+      }],
+      config: {
+        temperature: 0.8,
+        maxOutputTokens: 200
+      }
+    });
+
+    return response.text?.trim() || prompt;
+  } catch (error) {
+    console.error("Neural optimization failed:", error);
+    return prompt;
+  }
+}
+
 export async function getVideoStatus(operation: any, userApiKey?: string) {
   try {
     const client = getGeminiClient(userApiKey);
@@ -323,7 +389,9 @@ export async function getVideoStatus(operation: any, userApiKey?: string) {
     const updatedOperation = await client.operations.getVideosOperation({ operation });
     return updatedOperation;
   } catch (error: any) {
-    console.error("Error checking video status:", error);
+    if (!getIsAuthError(error)) {
+      console.error("Error checking video status:", error);
+    }
     handleGeminiError(error);
     throw error;
   }

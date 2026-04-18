@@ -29,10 +29,12 @@ import {
   User,
   Activity,
   Trash2,
-  Users
+  Users,
+  Network
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import NeuralBackground from './NeuralBackground';
+import NeuralFrequency from './NeuralFrequency';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ChatSession, VisualConfig } from '../types';
@@ -50,6 +52,7 @@ interface LayoutProps {
 export default function Layout({ children, activeTab, setActiveTab, onNewSession, onSelectSession, currentSessionId, visualConfig }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(window.innerWidth > 1024);
   const [sessions, setSessions] = React.useState<ChatSession[]>([]);
+  const [showDiagnostics, setShowDiagnostics] = React.useState(false);
   const { user, logout } = useAuth();
 
   React.useEffect(() => {
@@ -90,6 +93,7 @@ export default function Layout({ children, activeTab, setActiveTab, onNewSession
     { id: 'academy', icon: BookOpen, label: 'Neural Academy' },
     { id: 'training', icon: Brain, label: 'Neural Training' },
     { id: 'agency', icon: Users, label: 'Neural Agency' },
+    { id: 'graph', icon: Network, label: 'Neural Map' },
     { id: 'lab', icon: Beaker, label: 'Neural Lab' },
     { id: 'news', icon: Newspaper, label: 'Neural News' },
     { id: 'silicon', icon: Microchip, label: 'Neural Silicon' },
@@ -135,15 +139,22 @@ export default function Layout({ children, activeTab, setActiveTab, onNewSession
         }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         className={cn(
-          "fixed lg:relative h-full glass border-r border-white/5 flex flex-col z-40",
+          "fixed lg:relative h-full glass border-r border-white/5 flex flex-col z-50",
           !isSidebarOpen && "pointer-events-none"
         )}
       >
-        <div className="p-6 flex items-center gap-3">
+        <div className="p-6 pb-2 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-nexus-accent flex items-center justify-center neon-glow">
             <Cpu className="w-5 h-5 text-nexus-bg" />
           </div>
-          <span className="text-xl font-bold tracking-tighter text-white">NEXUS</span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold tracking-tighter text-white leading-none">NEXUS</span>
+            <span className="text-[8px] font-mono text-nexus-accent/60 uppercase tracking-[0.2em] mt-1 -ml-0.5">Neural OS v3.0</span>
+          </div>
+        </div>
+
+        <div className="px-4 mb-4">
+          <NeuralFrequency />
         </div>
 
         <div className="px-4 mb-6">
@@ -255,12 +266,12 @@ export default function Layout({ children, activeTab, setActiveTab, onNewSession
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative flex flex-col min-w-0">
-        <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 glass z-10">
+      <main className="flex-1 relative flex flex-col min-w-0 z-10">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 glass z-30">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors"
+              className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors border border-white/5"
             >
               {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -287,6 +298,43 @@ export default function Layout({ children, activeTab, setActiveTab, onNewSession
           </div>
           
           <div className="flex items-center gap-3">
+            <div 
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group relative"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-nexus-accent animate-pulse" />
+              <span className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-widest group-hover:text-nexus-accent transition-colors">Diagnostics</span>
+              
+              <AnimatePresence>
+                {showDiagnostics && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="absolute top-full right-0 mt-2 w-64 glass p-4 rounded-2xl border border-nexus-accent/30 shadow-2xl z-50 pointer-events-auto"
+                  >
+                    <h4 className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Activity className="w-3 h-3" />
+                      Neural Telemetry
+                    </h4>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Core Sync', value: '99.9%' },
+                        { label: 'Synaptic Load', value: '42%' },
+                        { label: 'Uptime', value: '412h 12m' },
+                        { label: 'Latency', value: '18ms' },
+                        { label: 'Architect', value: 'Online' },
+                      ].map(stat => (
+                        <div key={stat.label} className="flex items-center justify-between text-[10px] py-1 border-b border-white/5">
+                          <span className="text-nexus-text-dim uppercase tracking-tighter">{stat.label}</span>
+                          <span className="font-mono text-white tracking-widest">{stat.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             {localStorage.getItem('nexus_user_key') && (
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-nexus-accent/10 border border-nexus-accent/20">
                 <Shield className="w-3.5 h-3.5 text-nexus-accent" />
@@ -315,36 +363,68 @@ export default function Layout({ children, activeTab, setActiveTab, onNewSession
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto relative no-scrollbar md:scrollbar-thin">
           {children}
         </div>
 
-        {/* Neural News Ticker */}
-        <div className="h-8 bg-black/40 border-t border-white/5 flex items-center overflow-hidden whitespace-nowrap relative z-10">
-          <div className="absolute left-0 top-0 bottom-0 px-3 bg-nexus-accent flex items-center z-20">
-            <span className="text-[9px] font-bold text-nexus-bg uppercase tracking-widest">Neural Feed</span>
-          </div>
-          <motion.div 
-            animate={{ x: [0, -2000] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="flex items-center gap-12 pl-32"
-          >
-            {[
-              "GEMINI 2.0 PRO CORE SYNCHRONIZED",
-              "NEURAL BANDWIDTH AT 98.4% CAPACITY",
-              "NEW MOTION GEN KERNELS DEPLOYED",
-              "QUANTUM REASONING MODULE ACTIVE",
-              "GLOBAL INFERENCE LOAD: STABLE",
-              "NEURAL ARCHITECT v4.2 INITIALIZED",
-              "VISION SYNTHESIS ACCURACY IMPROVED BY 12%",
-              "DEEP RESEARCH GROUNDING ACTIVE"
-            ].map((news, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-1 h-1 rounded-full bg-nexus-accent" />
-                <span className="text-[9px] font-mono text-nexus-text-dim uppercase tracking-widest">{news}</span>
+        {/* Neural Telemetry Bar */}
+        <div className="h-10 bg-black/60 border-t border-white/5 flex items-center justify-between px-6 overflow-hidden relative z-10">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-nexus-accent animate-pulse" />
+              <span className="text-[9px] font-bold text-nexus-accent uppercase tracking-widest leading-none">Core Health: Nominal</span>
+            </div>
+            <div className="hidden sm:flex items-center gap-4 border-l border-white/10 pl-4 h-4">
+              <div className="flex flex-col">
+                <span className="text-[7px] text-nexus-text-dim uppercase leading-none mb-1">Temp</span>
+                <span className="text-[9px] font-mono text-white leading-none">54.2°C</span>
               </div>
-            ))}
-          </motion.div>
+              <div className="flex flex-col">
+                <span className="text-[7px] text-nexus-text-dim uppercase leading-none mb-1">Stability</span>
+                <span className="text-[9px] font-mono text-white leading-none">99.8%</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[7px] text-nexus-text-dim uppercase leading-none mb-1">Latency</span>
+                <span className="text-[9px] font-mono text-white leading-none">412ms</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-hidden relative h-full flex items-center mx-8">
+            <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/60 to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/60 to-transparent z-10" />
+            
+            <motion.div 
+              animate={{ x: [0, -1000] }}
+              transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+              className="flex items-center gap-12 whitespace-nowrap"
+            >
+              {[
+                "GEMINI 2.0 PRO CORE SYNCHRONIZED",
+                "NEURAL BANDWIDTH AT 98.4% CAPACITY",
+                "NEW MOTION GEN KERNELS DEPLOYED",
+                "QUANTUM REASONING MODULE ACTIVE",
+                "GLOBAL INFERENCE LOAD: STABLE",
+                "NEURAL ARCHITECT v4.2 INITIALIZED",
+                "VISION SYNTHESIS ACCURACY IMPROVED BY 12%",
+                "DEEP RESEARCH GROUNDING ACTIVE"
+              ].map((news, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-1 h-1 rounded-full bg-nexus-accent/40" />
+                  <span className="text-[8px] font-mono text-nexus-text-dim/60 uppercase tracking-widest">{news}</span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={cn("w-1 h-3 rounded-full", i < 4 ? "bg-nexus-accent/60" : "bg-white/10")} />
+              ))}
+            </div>
+            <span className="text-[9px] font-bold text-nexus-text-dim uppercase tracking-tighter">Load: 82%</span>
+          </div>
         </div>
       </main>
     </div>

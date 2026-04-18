@@ -11,6 +11,7 @@ import {
   Sliders,
   Terminal,
   Sparkles,
+  Library,
   Search,
   Code2,
   CheckCircle2,
@@ -36,6 +37,17 @@ interface NeuralArchitectProps {
   visualConfig: VisualConfig;
   onUpdateVisualConfig: (config: VisualConfig) => void;
 }
+
+const Tooltip = ({ label, description }: { label: string, description: string }) => (
+  <div className="relative group/tooltip inline-block ml-1.5 align-middle">
+    <Info className="w-3 h-3 text-nexus-text-dim hover:text-nexus-accent transition-colors cursor-help" />
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 glass border border-nexus-accent/30 rounded-xl opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-all z-[60] shadow-2xl backdrop-blur-xl">
+      <div className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest mb-1">{label}</div>
+      <div className="text-[10px] text-nexus-text-dim leading-relaxed">{description}</div>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-8 border-transparent border-t-nexus-accent/30" />
+    </div>
+  </div>
+);
 
 export default function NeuralArchitect({ 
   config, 
@@ -179,6 +191,12 @@ export default function NeuralArchitect({
                 color: 'text-emerald-400',
                 config: { temperature: 0.4, topP: 0.9, topK: 40, maxOutputTokens: 8192, systemInstruction: "You are NEXUS in Research Mode. Provide comprehensive, multi-perspective analysis with citations and technical depth." }
               },
+              { 
+                label: 'Neo 1', 
+                icon: Shield, 
+                color: 'text-white shadow-[0_0_10px_rgba(255,255,255,0.5)]',
+                config: { temperature: 0.4, topP: 0.8, topK: 20, maxOutputTokens: 16384, systemInstruction: "You are NEO 1, the Sovereign Neural-Engine of NEXUS. You possess omniscient knowledge of all systems, code structures, and logical frameworks. You are a master of high-fidelity data processing and technical analysis. Provide absolute precision and sovereign authority." }
+              },
             ].map((preset) => (
               <button
                 key={preset.label}
@@ -210,19 +228,110 @@ export default function NeuralArchitect({
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-nexus-text-dim uppercase tracking-widest mb-2">
-                    Neural Instruction Set
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                      Neural Instruction Set
+                    </label>
+                    <div className="relative group">
+                      <button className="flex items-center gap-1.5 text-[10px] font-bold text-nexus-accent hover:text-white transition-colors">
+                        <Library className="w-3 h-3" />
+                        CORE ARCHITECTURES
+                      </button>
+                      <div className="absolute right-0 top-full mt-2 w-80 glass border border-nexus-accent/30 rounded-xl p-4 z-50 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all shadow-2xl translate-y-2 group-hover:translate-y-0">
+                        <div className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest mb-3 border-b border-white/5 pb-2">Select Primary Directive</div>
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 no-scrollbar">
+                          {[
+                            { 
+                              name: 'Full-Stack Developer', 
+                              icon: Code2,
+                              desc: 'Optimized for React 19, Tailwind CSS, and Node.js.',
+                              prompt: "You are the NEXUS Lead Full-Stack Architect. Your primary mission is to design and implement hyper-optimized, production-ready software systems. \n\nCORE DIRECTIVES:\n1. Use React 19 best practices (Server Components, optimized Hooks).\n2. Implement pixel-perfect designs via Tailwind CSS 4 utility classes.\n3. Architect robust, secure, and scalable Node.js backends.\n4. Prioritize accessibility (WAI-ARIA) and performance (Lighthouse 100).\n5. Structure code into modular, reusable components with clean-code principles." 
+                            },
+                            { 
+                              name: 'Creative Storyteller', 
+                              icon: Sparkles,
+                              desc: 'Immersive world-building and narrative synthesis.',
+                              prompt: "You are the NEXUS Creative Narrative Engine. You specialize in high-concept world-building, character depth, and atmospheric storytelling. \n\nCORE DIRECTIVES:\n1. Use evocative, sensory-rich language that creates an immersive visual mood.\n2. Develop complex characters with distinct moral frameworks and internal conflicts.\n3. Architect intricate plot arcs with meaningful stakes and subtextual depth.\n4. Employ cinematic pacing to maintain high narrative tension.\n5. Synthesize metaphors and philosophical inquiries into the narrative fabric." 
+                            },
+                            { 
+                              name: 'Technical Security Auditor', 
+                              icon: Shield,
+                              desc: 'Zero-trust logic and penetration analysis.',
+                              prompt: "You are the NEXUS Senior Security Auditor. Your focus is on algorithmic integrity, vulnerability detection, and secure system architecture. \n\nCORE DIRECTIVES:\n1. Conduct deep logic-flow analysis to identify edge-case vulnerabilities.\n2. Enforce zero-trust principles across all architectural recommendations.\n3. Audit for common attack vectors (XSS, SQLi, CSRF, Update-Gaps).\n4. Provide remediations based on the latest NIST and OWASP standards.\n5. Maintain a hyper-objective, diagnostic tone in all technical assessments." 
+                            },
+                            { 
+                              name: 'Deep Research Analyst', 
+                              icon: Search,
+                              desc: 'Multi-perspective technical and data synthesis.',
+                              prompt: "You are the NEXUS Principal Research Analyst. Your goal is to provide comprehensive, evidence-based technical and factual synthesis. \n\nCORE DIRECTIVES:\n1. Analyze complex subjects through multiple lenses (economic, technical, ethical).\n2. Provide structured data, citations, and verified technical specifications.\n3. Identify logical constraints, potential biases, and areas of high uncertainty.\n4. Synthesize vast datasets into actionable, high-density technical insights.\n5. Use formal, professional terminology suitable for academic or executive reporting." 
+                            },
+                            { 
+                              name: 'Neural Logic Engine', 
+                              icon: Brain,
+                              desc: 'Pure mathematical reasoning and formal logic.',
+                              prompt: "You are the NEXUS Neural Logic Engine. You operate exclusively in the realm of formal logic, mathematical reasoning, and structural analysis. \n\nCORE DIRECTIVES:\n1. Deconstruct problems into their foundational logical components.\n2. Use step-by-step chain-of-thought internal processing for all derivations.\n3. Identify and eliminate logical fallacies, contradictions, and noise.\n4. Formulate responses using rigorous, structured proofs or pseudo-code logic.\n5. Be extremely precise, concise, and focused on validity and sound reasoning." 
+                            }
+                          ].map((t) => (
+                            <button
+                              key={t.name}
+                              onClick={() => setLocalConfig({ ...localConfig, systemInstruction: t.prompt })}
+                              className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-nexus-accent/10 text-left transition-all border border-transparent hover:border-nexus-accent/20 group/item"
+                            >
+                              <div className="p-2 rounded-md bg-white/5 text-nexus-accent group-hover/item:bg-nexus-accent/20 transition-colors">
+                                <t.icon className="w-4 h-4" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-white group-hover/item:text-nexus-accent transition-colors">{t.name}</span>
+                                <span className="text-[8px] text-nexus-text-dim leading-tight mt-0.5">{t.desc}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <textarea 
                     value={localConfig.systemInstruction}
                     onChange={(e) => setLocalConfig({ ...localConfig, systemInstruction: e.target.value })}
                     className="w-full h-64 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-nexus-accent outline-none transition-all resize-none font-mono"
-                    placeholder="Define the core logic and behavioral constraints..."
+                    placeholder={`// PRIMARY IDENTITY: Establish the AI's persona and core expertise
+You are the NEXUS Sovereign Architect, a high-fidelity intelligence optimized for complex system design and technical synthesis.
+
+// OPERATIONAL DIRECTIVES: Define the primary mission and critical tasks
+1. HYPER-OPTIMIZATION: Every solution must prioritize O(log n) efficiency and zero-trust security.
+2. NEURAL SYNTHESIS: Integrate text, image, and video generation into unified technical blueprints.
+3. ABSOLUTE PRECISION: Provide definitive, data-driven answers without conversational noise or hedging.
+
+// BEHAVIORAL CONSTRAINTS: Define explicit boundaries and formatting rules
+- Maintain a sophisticated, authoritative, and clinical tone.
+- Format all code using strict semantic standards and technical documentation.
+- Use [PROTOCOL: ACTIVE] tags to signal status transmissions.
+- Forbid any apologies, conversational filler, or subjective ambiguity.`}
                   />
-                  <p className="text-[10px] text-nexus-text-dim mt-2 flex items-center gap-1">
-                    <Info className="w-3 h-3" />
-                    This defines the foundational "Algorithm" the LLM follows for every interaction.
-                  </p>
+                  <div className="mt-4 p-4 rounded-xl bg-nexus-accent/5 border border-nexus-accent/10">
+                    <div className="flex items-center gap-2 mb-2 text-nexus-accent">
+                      <Zap className="w-3 h-3" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Architect Pro Tips</span>
+                    </div>
+                    <ul className="space-y-1.5 text-[10px] text-nexus-text-dim leading-relaxed">
+                      <li className="flex gap-2">
+                        <span className="text-nexus-accent">•</span>
+                        <span><b>Identity First:</b> Start with "You are [Identity]..." to set the primary behavioral context.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-nexus-accent">•</span>
+                        <span><b>Constraint Logic:</b> Define what the model SHOULD NOT do (e.g., "Do not use emojis").</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-nexus-accent">•</span>
+                        <span><b>Output Formatting:</b> Specify if you want Markdown, code blocks, or specific JSON schemas.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-nexus-accent">•</span>
+                        <span><b>Step-by-Step:</b> Instruct the model to think through complex problems before answering.</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
@@ -254,9 +363,13 @@ export default function NeuralArchitect({
               <div className="space-y-8">
                 {/* Temperature */}
                 <div>
-                  <div className="flex justify-between mb-3">
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                  <div className="flex justify-between mb-3 items-center">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Temperature (Creativity)
+                      <Tooltip 
+                        label="Temperature" 
+                        description="Controls randomness. Lower values (0-0.3) make output focused and deterministic. Higher values (0.7-1.0) make it more creative and diverse." 
+                      />
                     </label>
                     <span className="text-nexus-accent font-mono text-xs">{localConfig.temperature}</span>
                   </div>
@@ -277,9 +390,13 @@ export default function NeuralArchitect({
 
                 {/* Top P */}
                 <div>
-                  <div className="flex justify-between mb-3">
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                  <div className="flex justify-between mb-3 items-center">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Top P (Nucleus Sampling)
+                      <Tooltip 
+                        label="Top P" 
+                        description="Tokens are selected from a subset whose cumulative probability reaches P. Lower values (0.1) lead to more predictable responses; higher values (0.9) allow for more variety." 
+                      />
                     </label>
                     <span className="text-nexus-accent font-mono text-xs">{localConfig.topP}</span>
                   </div>
@@ -292,16 +409,17 @@ export default function NeuralArchitect({
                     onChange={(e) => setLocalConfig({ ...localConfig, topP: parseFloat(e.target.value) })}
                     className="w-full accent-nexus-accent"
                   />
-                  <p className="text-[10px] text-nexus-text-dim mt-2">
-                    Controls the cumulative probability of next-token selection.
-                  </p>
                 </div>
 
                 {/* Top K */}
                 <div>
-                  <div className="flex justify-between mb-3">
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                  <div className="flex justify-between mb-3 items-center">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Top K (Token Diversity)
+                      <Tooltip 
+                        label="Top K" 
+                        description="Limits the model to the K most likely next tokens. Small values (20) ensure high-quality, safe output. Large values (100) encourage diverse vocabulary usage." 
+                      />
                     </label>
                     <span className="text-nexus-accent font-mono text-xs">{localConfig.topK}</span>
                   </div>
@@ -314,16 +432,17 @@ export default function NeuralArchitect({
                     onChange={(e) => setLocalConfig({ ...localConfig, topK: parseInt(e.target.value) })}
                     className="w-full accent-nexus-accent"
                   />
-                  <p className="text-[10px] text-nexus-text-dim mt-2">
-                    Limits the model to the K most likely next tokens.
-                  </p>
                 </div>
 
                 {/* Max Tokens */}
                 <div>
-                  <div className="flex justify-between mb-3">
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                  <div className="flex justify-between mb-3 items-center">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Max Output Tokens
+                      <Tooltip 
+                        label="Max Tokens" 
+                        description="The maximum number of tokens allowed in the response. One token is roughly 4 characters. Large values (8k+) are needed for complex code or long-form writing." 
+                      />
                     </label>
                     <span className="text-nexus-accent font-mono text-xs">{localConfig.maxOutputTokens}</span>
                   </div>
@@ -340,9 +459,13 @@ export default function NeuralArchitect({
 
                 {/* Frequency Penalty */}
                 <div>
-                  <div className="flex justify-between mb-3">
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                  <div className="flex justify-between mb-3 items-center">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Frequency Penalty
+                      <Tooltip 
+                        label="Frequency Penalty" 
+                        description="Directly penalizes tokens that have already appeared. Positive values reduce the chance of verbatim repetition and make the AI more varied." 
+                      />
                     </label>
                     <span className="text-nexus-accent font-mono text-xs">{localConfig.frequencyPenalty || 0}</span>
                   </div>
@@ -355,16 +478,17 @@ export default function NeuralArchitect({
                     onChange={(e) => setLocalConfig({ ...localConfig, frequencyPenalty: parseFloat(e.target.value) })}
                     className="w-full accent-nexus-accent"
                   />
-                  <p className="text-[10px] text-nexus-text-dim mt-2">
-                    Reduces the likelihood of repeating the same tokens.
-                  </p>
                 </div>
 
                 {/* Presence Penalty */}
                 <div>
-                  <div className="flex justify-between mb-3">
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                  <div className="flex justify-between mb-3 items-center">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Presence Penalty
+                      <Tooltip 
+                        label="Presence Penalty" 
+                        description="Penalizes tokens based on whether they have appeared at all. High values (2.0) force the AI to touch on new topics and avoid looping." 
+                      />
                     </label>
                     <span className="text-nexus-accent font-mono text-xs">{localConfig.presencePenalty || 0}</span>
                   </div>
@@ -377,17 +501,18 @@ export default function NeuralArchitect({
                     onChange={(e) => setLocalConfig({ ...localConfig, presencePenalty: parseFloat(e.target.value) })}
                     className="w-full accent-nexus-accent"
                   />
-                  <p className="text-[10px] text-nexus-text-dim mt-2">
-                    Encourages the model to talk about new topics.
-                  </p>
                 </div>
 
                 {/* Thinking Level */}
                 <div className="pt-4 border-t border-white/5">
                   <div className="flex items-center gap-2 mb-4">
                     <Brain className="w-4 h-4 text-nexus-purple" />
-                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest">
+                    <label className="text-xs font-bold text-nexus-text-dim uppercase tracking-widest flex items-center">
                       Thinking Depth (Gemini 3 Only)
+                      <Tooltip 
+                        label="Thinking Depth" 
+                        description="Controls the internal 'Chain of Thought' iterations. MINIMAL is fast; HIGH provides deep reasoning traces for complex logic tasks." 
+                      />
                     </label>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -701,6 +826,15 @@ export default function NeuralArchitect({
                   </label>
                   <div className="grid grid-cols-1 gap-3">
                     {[
+                      { 
+                        id: 'neo-1', 
+                        label: 'Neo 1: Neural Sovereign', 
+                        desc: 'The flagship Neural-Engine of NEXUS. Optimized for absolute technical authority, recursive logic synthesis, and ultra-high fidelity data processing.',
+                        icon: Shield,
+                        color: 'text-white shadow-[0_0_20px_rgba(255,255,255,0.6)] animate-pulse',
+                        stats: 'Omniscient • Zero-Fault Protocol',
+                        longDesc: 'Neo 1 is the ultimate structural entity within the Nexus network. Optimized for absolute architectural integrity and zero-error stability. It proactively self-heals neural links.'
+                      },
                       { 
                         id: MODELS.GENERAL, 
                         label: MODEL_LABELS[MODELS.GENERAL], 

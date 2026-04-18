@@ -29,9 +29,10 @@ import { useAuth } from '../contexts/AuthContext';
 interface MessageItemProps {
   message: ChatMessage;
   onRegenerate?: () => void;
+  searchQuery?: string;
 }
 
-export default function MessageItem({ message, onRegenerate }: MessageItemProps) {
+export default function MessageItem({ message, onRegenerate, searchQuery = '' }: MessageItemProps) {
   const { user } = useAuth();
   const [copied, setCopied] = React.useState(false);
   const [isSpeaking, setIsSpeaking] = React.useState(false);
@@ -153,7 +154,7 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
                     <div className="p-4 pt-0 text-xs text-nexus-text-dim font-mono leading-relaxed border-t border-white/5 bg-black/20">
                       {thoughtParts.map((p, i) => (
                         <div key={i} className="mb-2 last:mb-0">
-                          <MarkdownContent content={p.thought!} />
+                          <MarkdownContent content={p.thought!} searchQuery={searchQuery} />
                         </div>
                       ))}
                     </div>
@@ -165,7 +166,7 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
 
           {textParts.map((part, i) => (
             <div key={i} className="relative">
-              {part.text && <MarkdownContent content={part.text} />}
+              {part.text && <MarkdownContent content={part.text} searchQuery={searchQuery} />}
               {message.isStreaming && i === textParts.length - 1 && (
                 <motion.span 
                   animate={{ opacity: [1, 0] }}
@@ -283,7 +284,18 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
       );
     }
 
-    return <MarkdownContent content={message.content as string} />;
+    return (
+      <div className="relative">
+        <MarkdownContent content={message.content as string} searchQuery={searchQuery} />
+        {message.isStreaming && (
+          <motion.span 
+            animate={{ opacity: [1, 0] }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+            className="inline-block w-1.5 h-4 ml-1 bg-nexus-accent align-middle"
+          />
+        )}
+      </div>
+    );
   };
 
   return (
@@ -392,7 +404,26 @@ export default function MessageItem({ message, onRegenerate }: MessageItemProps)
   );
 }
 
-function MarkdownContent({ content }: { content: string }) {
+function MarkdownContent({ content, searchQuery = '' }: { content: string, searchQuery?: string }) {
+  const highlightText = (text: any): React.ReactNode => {
+    if (typeof text !== 'string' || !searchQuery.trim()) return text;
+    
+    const parts = text.split(new RegExp(`(${searchQuery})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) => 
+          part.toLowerCase() === searchQuery.toLowerCase() ? (
+            <span key={i} className="bg-nexus-accent/30 text-nexus-accent font-bold px-0.5 rounded shadow-[0_0_10px_rgba(0,242,255,0.2)]">
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -430,20 +461,20 @@ function MarkdownContent({ content }: { content: string }) {
             </div>
           ) : (
             <code className={cn("bg-white/10 px-1.5 py-0.5 rounded text-nexus-accent font-mono text-sm", className)} {...props}>
-              {children}
+              {highlightText(children)}
             </code>
           );
         },
-        p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
-        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
-        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
-        li: ({ children }) => <li>{children}</li>,
-        h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-white">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-xl font-bold mb-3 text-white">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-lg font-bold mb-2 text-white">{children}</h3>,
+        p: ({ children }) => <p className="mb-4 last:mb-0">{highlightText(children)}</p>,
+        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2">{highlightText(children)}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2">{highlightText(children)}</ol>,
+        li: ({ children }) => <li>{highlightText(children)}</li>,
+        h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-white">{highlightText(children)}</h1>,
+        h2: ({ children }) => <h2 className="text-xl font-bold mb-3 text-white">{highlightText(children)}</h2>,
+        h3: ({ children }) => <h3 className="text-lg font-bold mb-2 text-white">{highlightText(children)}</h3>,
         blockquote: ({ children }) => (
           <blockquote className="border-l-4 border-nexus-accent bg-nexus-accent/5 px-4 py-2 my-4 italic">
-            {children}
+            {highlightText(children)}
           </blockquote>
         ),
       }}

@@ -12,9 +12,64 @@
   --color-nexus-purple: #bc13fe;
   --color-nexus-text: #e0e0e0;
   --color-nexus-text-dim: #888888;
+  --color-nexus-border: rgba(255, 255, 255, 0.08);
 
   --animate-gradient-x: gradient-x 15s ease infinite;
   --animate-progress: progress 3s linear infinite;
+  --animate-pulse-slow: pulse-slow 4s ease-in-out infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes neural-flow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% 100%; }
+}
+
+.neural-flow-bg {
+  background: linear-gradient(180deg, 
+    transparent 0%, 
+    rgba(0, 242, 255, 0.03) 50%, 
+    transparent 100%
+  );
+  background-size: 100% 200%;
+  animation: neural-flow 10s linear infinite;
+}
+
+.tech-border {
+  position: relative;
+  border: 1px solid var(--color-nexus-border);
+}
+
+.tech-border::before, .tech-border::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border: 1px solid var(--color-nexus-accent);
+  border-bottom: 0;
+  border-right: 0;
+  top: -1px;
+  left: -1px;
+  z-index: 10;
+}
+
+.tech-border::after {
+  border-top: 0;
+  border-left: 0;
+  border-bottom: 1px solid var(--color-nexus-accent);
+  border-right: 1px solid var(--color-nexus-accent);
+  bottom: -1px;
+  right: -1px;
+  top: auto;
+  left: auto;
+}
+
+.neural-mask {
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
 }
 
 @keyframes gradient-x {

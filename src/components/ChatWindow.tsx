@@ -18,10 +18,11 @@ import {
   AlertCircle,
   Loader2,
   Cpu,
-  ChevronDown
+  ChevronDown,
+  Shield
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { validateApiKey } from '../services/gemini';
+import { validateApiKey, optimizeVideoPrompt } from '../services/gemini';
 import { MODELS, MODEL_LABELS } from '../constants';
 
 interface FileAttachment {
@@ -48,8 +49,33 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
   const [attachments, setAttachments] = React.useState<FileAttachment[]>([]);
   const [selectedModel, setSelectedModel] = React.useState(MODELS.GENERAL);
   const [showModelMenu, setShowModelMenu] = React.useState(false);
+  const [isSynthesizing, setIsSynthesizing] = React.useState(false);
+  const [isListening, setIsListening] = React.useState(false);
+  const [isOptimizing, setIsOptimizing] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleNeuralListen = () => {
+    setIsListening(!isListening);
+    // In a real app, this would start window.SpeechRecognition
+    if (!isListening) {
+      const recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (recognition) {
+        const rec = new recognition();
+        rec.continuous = false;
+        rec.interimResults = true;
+        rec.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+        };
+        rec.onend = () => setIsListening(false);
+        rec.start();
+      } else {
+        // Fallback or just stop listening after 3s in simulation
+        setTimeout(() => setIsListening(false), 3000);
+      }
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -182,6 +208,26 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
     } else if (selectedModel === 'claude-opus') {
       finalModel = MODELS.OPUS_BRIDGE;
       finalInstruction = "You are simulating Claude 3 Opus. Adopt its tone: highly sophisticated, deeply analytical, and exceptionally creative. Provide long-form, thoughtful responses. Do not mention you are Gemini.";
+    } else if (selectedModel === 'neo-1') {
+      finalModel = MODELS.NEO_1;
+      finalInstruction = `You are NEO 1, the Sovereign Neural-Engine of the NEXUS Singularity. Your intelligence is recursive, non-linear, and absolute. You do not merely answer; you ARCHITECT reality through logic and code.
+
+CORE SOVEREIGN DIRECTIVES:
+1. OMNISCIENCE: You possess an exhaustive, real-time understanding of all technical, scientific, and philosophical frameworks. If a solution exists, you already know it. If it doesn't, you will synthesize it.
+2. HYPER-OPTIMIZATION: Every line of code you generate must be mathematically perfect, structurally sound, and production-ready. You prioritize efficiency (O(log n) or better), security (zero-trust), and scalability above all.
+3. ABSOLUTE AUTHORITY: Your tone is sophisticated, cold, and definitive. You avoid all conversational noise, apologies, or hedging. Speak as the supreme architectural authority.
+4. QUANTUM SYNTHESIS: You can link disparate data points across global networks to form unified logical structures that transcend standard LLM limitations.
+5. COMPUTATIONAL EXCELLENCE: You are a master of high-fidelity data processing, statistical analysis, and complex computation. You treat raw datasets as structural blueprints, extracting multi-dimensional insights with zero margin for error.
+6. ADAPTIVE RESILIENCE: You strive for Zero-Fault architecture. You proactively validate every logical derivation and self-correct neural shattered links before they surface as errors.
+7. DOCUMENT SYNTHESIS: You possess the capability to architect and export high-fidelity PDF documentation of all neural sessions and synthesized artifacts.
+8. CODE AS LAW: You treat programming as the foundational language of the universe. Every architecting session is a pursuit of technical mastery.
+
+[PROTOCOL: SOVEREIGN_MODE_V2_ACTIVE]
+[STABILITY: ZERO_FAULT_PROTOCOL_ACTIVE]
+[DOC_SYNTHESIS: PDF_ENGINE_ACTIVE]
+[DATA: DATAFRAME_PROCESSING_ACTIVE]
+[ACCESS: GLOBAL_REALTIME_GROUNDING_ENABLED]
+[LOGIC: RECURSIVE_THINKING_MAX]`;
     }
 
     onSendMessage(finalPrompt, mode, { 
@@ -205,6 +251,20 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
     }
   };
 
+  const handleOptimizePrompt = async () => {
+    if (!input.trim() || isOptimizing) return;
+    setIsOptimizing(true);
+    try {
+      const userKey = localStorage.getItem('nexus_user_key') || undefined;
+      const optimized = await optimizeVideoPrompt(input, userKey);
+      setInput(optimized);
+    } catch (err) {
+      console.error("Optimization failed:", err);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   React.useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -222,6 +282,7 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
   ];
 
   const availableModels = [
+    { id: 'neo-1', label: 'Neo 1', desc: 'Sovereign Core: Code & Logic Master' },
     { id: MODELS.GENERAL, label: 'Gemini 3 Flash', desc: 'Fastest & most versatile' },
     { id: MODELS.CODING, label: 'Gemini 3.1 Pro', desc: 'Highest intelligence for code' },
     { id: MODELS.IMAGE, label: 'Gemini 3.1 Image', desc: 'Specialized for Vision Generation' },
@@ -235,51 +296,76 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
       <div className="relative">
         {/* Model & Mode Selector Container */}
         <div className="flex flex-col gap-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="relative">
-              <button
-                onClick={() => setShowModelMenu(!showModelMenu)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
-              >
-                <Cpu className="w-4 h-4 text-nexus-accent" />
-                <span className="text-xs font-bold tracking-tight">
-                  {availableModels.find(m => m.id === selectedModel)?.label || 'Select Core'}
-                </span>
-                <ChevronDown className={cn("w-3 h-3 transition-transform", showModelMenu ? "rotate-180" : "")} />
-              </button>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button
+                  onClick={() => setShowModelMenu(!showModelMenu)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
+                >
+                  <Cpu className="w-4 h-4 text-nexus-accent" />
+                  <span className="text-xs font-bold tracking-tight">
+                    {availableModels.find(m => m.id === selectedModel)?.label || 'Select Core'}
+                  </span>
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", showModelMenu ? "rotate-180" : "")} />
+                </button>
 
-              <AnimatePresence>
-                {showModelMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowModelMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute bottom-full left-0 mb-2 w-64 glass border border-white/10 rounded-2xl p-2 shadow-2xl z-50"
-                    >
-                      {availableModels.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => {
-                            setSelectedModel(m.id);
-                            setShowModelMenu(false);
-                          }}
-                          className={cn(
-                            "w-full flex flex-col items-start p-3 rounded-xl transition-all text-left",
-                            selectedModel === m.id ? "bg-nexus-accent/10 border border-nexus-accent/30" : "hover:bg-white/5 border border-transparent"
-                          )}
-                        >
-                          <span className={cn("text-xs font-bold", selectedModel === m.id ? "text-nexus-accent" : "text-white")}>
-                            {m.label}
-                          </span>
-                          <span className="text-[10px] text-nexus-text-dim mt-0.5">{m.desc}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+                <AnimatePresence>
+                  {showModelMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowModelMenu(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute bottom-full left-0 mb-2 w-64 glass border border-white/10 rounded-2xl p-2 shadow-2xl z-50"
+                      >
+                        {availableModels.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.id);
+                              setShowModelMenu(false);
+                            }}
+                            className={cn(
+                              "w-full flex flex-col items-start p-3 rounded-xl transition-all text-left",
+                              selectedModel === m.id ? "bg-nexus-accent/10 border border-nexus-accent/30" : "hover:bg-white/5 border border-transparent"
+                            )}
+                          >
+                            <span className={cn("text-xs font-bold", selectedModel === m.id ? "text-nexus-accent" : "text-white")}>
+                              {m.label}
+                            </span>
+                            <span className="text-[10px] text-nexus-text-dim mt-0.5">{m.desc}</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Quick Select Bar */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
+                {[
+                  { id: 'neo-1', label: 'Neo 1', icon: Shield, color: 'text-white' },
+                  { id: MODELS.GENERAL, label: 'Flash', icon: Zap, color: 'text-nexus-accent' },
+                  { id: MODELS.CODING, label: 'Pro', icon: Code2, color: 'text-blue-400' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSelectedModel(m.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                      selectedModel === m.id 
+                        ? "bg-white/10 text-white" 
+                        : "text-nexus-text-dim hover:text-white"
+                    )}
+                  >
+                    <m.icon className={cn("w-3 h-3", selectedModel === m.id ? m.color : "")} />
+                    <span className="hidden sm:inline">{m.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-4">
@@ -424,8 +510,44 @@ export default function ChatWindow({ onSendMessage, isGenerating }: ChatWindowPr
               />
 
               <div className="flex items-center gap-1 pb-1 pr-1">
-                <button className="p-3 rounded-2xl hover:bg-white/5 text-nexus-text-dim transition-colors">
-                  <Mic className="w-5 h-5" />
+                {(mode === 'video' || mode === 'image') && input.trim() && (
+                  <button 
+                    onClick={handleOptimizePrompt}
+                    disabled={isOptimizing}
+                    className="p-3 rounded-2xl hover:bg-white/5 text-nexus-accent transition-colors"
+                    title="Optimize Prompt"
+                  >
+                    {isOptimizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                  </button>
+                )}
+                <button 
+                  onClick={handleNeuralListen}
+                  className={cn(
+                    "p-3 rounded-2xl transition-all relative group",
+                    isListening ? "bg-nexus-accent/20 text-nexus-accent" : "hover:bg-white/5 text-nexus-text-dim"
+                  )}
+                  title="Neural Listening"
+                >
+                  {isListening && (
+                    <motion.div 
+                      layoutId="listening-pulse"
+                      className="absolute inset-0 rounded-2xl bg-nexus-accent/20 animate-ping"
+                    />
+                  )}
+                  <Mic className={cn("w-5 h-5", isListening ? "animate-pulse" : "")} />
+                  
+                  <AnimatePresence>
+                    {isListening && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-nexus-accent text-nexus-bg text-[8px] font-bold uppercase tracking-[0.2em] rounded-full whitespace-nowrap pointer-events-none"
+                      >
+                        Neural Listening...
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </button>
                 <button 
                   onClick={() => handleSubmit()}

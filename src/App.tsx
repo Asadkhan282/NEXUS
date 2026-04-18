@@ -23,6 +23,7 @@ import NeuralAccount from './components/NeuralAccount';
 import NeuralArtifacts from './components/NeuralArtifacts';
 import NeuralTraining from './components/NeuralTraining';
 import NeuralAgency from './components/NeuralAgency';
+import NeuralGraph from './components/NeuralGraph';
 import { generateResponse, generateResponseStream, generateImage, saveToGallery, generateVideo, getVideoStatus, fetchVideoBlob, NexusError } from './services/gemini';
 import { MODELS, MODEL_LABELS } from './constants';
 import { ChatMessage, NexusErrorType, GenerationConfig, ChatSession, VisualConfig, MessagePart } from './types';
@@ -30,6 +31,7 @@ import { ThinkingLevel, GenerateContentResponse } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, getDocs, setDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
+import { exportChatToPDF } from './lib/pdf';
 import { 
   Cpu, 
   Zap, 
@@ -39,19 +41,21 @@ import {
   Video, 
   Search, 
   Shield,
+  FileText,
   BookOpen,
   Beaker,
   Newspaper,
   Palette,
   Settings,
-  Grid
+  Grid,
+  X
 } from 'lucide-react';
 import { cn } from './lib/utils';
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, recoveryAttempts: number }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, recoveryAttempts: 0 };
   }
 
   static getDerivedStateFromError() {
@@ -60,10 +64,16 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
   componentDidCatch(error: any, errorInfo: any) {
     console.error("Uncaught error:", error, errorInfo);
+    if (this.state.recoveryAttempts < 2) {
+      console.warn(`Attempting adaptive core recovery (${this.state.recoveryAttempts + 1}/2)...`);
+      setTimeout(() => {
+        this.setState(prev => ({ hasError: false, recoveryAttempts: prev.recoveryAttempts + 1 }));
+      }, 1500);
+    }
   }
 
   render() {
-    if (this.state.hasError) {
+    if (this.state.hasError && this.state.recoveryAttempts >= 2) {
       return (
         <div className="min-h-screen bg-nexus-bg flex items-center justify-center p-8 text-center">
           <div className="glass p-12 rounded-3xl border border-red-500/20 max-w-md">
@@ -71,13 +81,24 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
               <Shield className="w-8 h-8 text-red-500" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-4">Neural Link Severed</h2>
-            <p className="text-nexus-text-dim mb-8">A critical error has occurred in the NEXUS core. Please refresh to re-initialize.</p>
+            <p className="text-nexus-text-dim mb-8">A critical error has occurred in the NEXUS core. Adaptive recovery failed. Please refresh to re-initialize manually.</p>
             <button 
               onClick={() => window.location.reload()}
               className="px-8 py-3 rounded-xl bg-nexus-accent text-nexus-bg font-bold hover:opacity-90 transition-opacity"
             >
-              Re-initialize Core
+              Force Re-initialization
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-nexus-bg flex items-center justify-center p-8 text-center">
+          <div className="flex flex-col items-center gap-4">
+             <div className="w-12 h-12 rounded-full border-2 border-nexus-accent border-t-transparent animate-spin" />
+             <p className="text-nexus-accent font-bold animate-pulse uppercase tracking-widest text-xs">Neural Sync Recovery Active...</p>
           </div>
         </div>
       );
@@ -173,6 +194,7 @@ function NexusApp() {
     thinkingLevel: ThinkingLevel.HIGH
   });
   const [selectedModel, setSelectedModel] = React.useState<string>(MODELS.GENERAL);
+  const [searchQuery, setSearchQuery] = React.useState('');
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -209,6 +231,20 @@ function NexusApp() {
 
     return () => unsubscribe();
   }, [user, currentSessionId]);
+
+  const filteredMessages = messages.filter(m => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    
+    // Search in text content
+    if (typeof m.content === 'string') {
+      if (m.content.toLowerCase().includes(q)) return true;
+    } else if (Array.isArray(m.content)) {
+      if (m.content.some(p => p.text?.toLowerCase().includes(q) || p.thought?.toLowerCase().includes(q))) return true;
+    }
+    
+    return false;
+  });
 
   if (loading) {
     return (
@@ -432,6 +468,11 @@ function NexusApp() {
 
   return (
     <ErrorBoundary>
+      <div className="neural-bg">
+        <div className="neural-noise opacity-10" />
+        <div className="neural-grid" />
+        <div className="neural-scan-line" />
+      </div>
       <Layout 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -480,6 +521,8 @@ function NexusApp() {
               <NeuralTraining />
             ) : activeTab === 'agency' ? (
               <NeuralAgency />
+            ) : activeTab === 'graph' ? (
+              <NeuralGraph />
             ) : activeTab === 'code' ? (
               <NeuralCode />
             ) : activeTab === 'image' ? (
@@ -488,6 +531,41 @@ function NexusApp() {
               <NeuralMotion />
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 border-b border-white/5 bg-black/20 flex items-center justify-between gap-4">
+                  <div className="relative flex-1 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-dim group-focus-within:text-nexus-accent transition-colors" />
+                    <input 
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search neural logs..."
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:border-nexus-accent outline-none transition-all"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-nexus-text-dim hover:text-white transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {searchQuery && (
+                    <div className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest whitespace-nowrap hidden md:block">
+                      {filteredMessages.length} Matches Found
+                    </div>
+                  )}
+                  <button 
+                    onClick={() => exportChatToPDF(messages)}
+                    disabled={messages.length === 0}
+                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-nexus-text-dim hover:text-white hover:border-white/20 transition-all flex items-center gap-2 disabled:opacity-30 group"
+                    title="Export Chat to PDF"
+                  >
+                    <FileText className="w-4 h-4 group-hover:text-nexus-accent transition-colors" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden md:block">Neural PDF</span>
+                  </button>
+                </div>
+
                 {messages.length === 0 ? (
                   <div className="flex-1 overflow-y-auto no-scrollbar">
                     <div className="min-h-full flex flex-col items-center justify-center p-8 text-center">
@@ -527,6 +605,7 @@ function NexusApp() {
 
                       <div className="flex flex-wrap justify-center gap-4 max-w-2xl w-full px-4">
                         {[
+                          { icon: Shield, label: "Neo 1", type: 'neo-1' },
                           { icon: Zap, label: "Thinking Deep", type: 'thinking' },
                           { icon: Search, label: "Deep Research", type: 'research' },
                           { icon: Code2, label: "Code Architect", type: 'code' },
@@ -549,11 +628,12 @@ function NexusApp() {
                 ) : (
                   <div className="flex-1 overflow-y-auto scroll-smooth no-scrollbar" ref={scrollRef}>
                     <div className="max-w-4xl mx-auto py-8">
-                      {messages.map((msg) => (
+                      {filteredMessages.map((msg) => (
                         <MessageItem 
                           key={msg.id} 
                           message={msg} 
                           onRegenerate={msg.role === 'assistant' ? () => handleRegenerate(msg.id) : undefined}
+                          searchQuery={searchQuery}
                         />
                       ))}
                       {isGenerating && (
@@ -565,10 +645,15 @@ function NexusApp() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold text-nexus-accent">NEXUS Core Active</span>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 items-center">
                                   <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '0ms' }} />
                                   <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '150ms' }} />
                                   <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                                  <motion.div 
+                                    animate={{ opacity: [1, 0] }}
+                                    transition={{ duration: 0.8, repeat: Infinity }}
+                                    className="w-1.5 h-4 bg-nexus-accent ml-2"
+                                  />
                                 </div>
                               </div>
                               <span className="text-[8px] font-mono text-nexus-text-dim uppercase tracking-[0.2em]">Neural Link: 98.4% Sync</span>

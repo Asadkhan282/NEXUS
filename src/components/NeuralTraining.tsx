@@ -13,6 +13,7 @@ import {
   Plus,
   Play,
   Save,
+  Shield,
   MessageSquare,
   Sparkles,
   RefreshCw,
@@ -37,7 +38,7 @@ interface KnowledgeFile {
 }
 
 export default function NeuralTraining() {
-  const [activeTab, setActiveTab] = React.useState<'bench' | 'knowledge' | 'synthetic'>('bench');
+  const [activeTab, setActiveTab] = React.useState<'bench' | 'knowledge' | 'synthetic' | 'sovereign'>('bench');
   const [files, setFiles] = React.useState<KnowledgeFile[]>([
     { id: '1', name: 'nexus_core_documentation.pdf', size: '2.4 MB', type: 'PDF', status: 'indexed' },
     { id: '2', name: 'brand_guidelines_2026.docx', size: '1.2 MB', type: 'DOCX', status: 'indexed' }
@@ -47,8 +48,6 @@ export default function NeuralTraining() {
   ]);
   const [newExample, setNewExample] = React.useState({ prompt: '', completion: '' });
   const [isTraining, setIsTraining] = React.useState(false);
-  const [trainingProgress, setTrainingProgress] = React.useState(0);
-  const [isUploading, setIsUploading] = React.useState(false);
 
   const handleAddExample = () => {
     if (!newExample.prompt || !newExample.completion) return;
@@ -60,6 +59,10 @@ export default function NeuralTraining() {
     }]);
     setNewExample({ prompt: '', completion: '' });
   };
+  const [transcendenceLevel, setTranscendenceLevel] = React.useState(0);
+  const [stabilityMode, setStabilityMode] = React.useState(false);
+  const [trainingProgress, setTrainingProgress] = React.useState(0);
+  const [isUploading, setIsUploading] = React.useState(false);
 
   const startTrainingRun = () => {
     setIsTraining(true);
@@ -71,6 +74,7 @@ export default function NeuralTraining() {
           clearInterval(interval);
           setIsTraining(false);
           setExamples(prevEx => prevEx.map(ex => ({ ...ex, status: 'trained' })));
+          if (activeTab === 'sovereign') setTranscendenceLevel(prevLevel => Math.min(prevLevel + 12.5, 100));
           return 100;
         }
         return prev + 1;
@@ -120,6 +124,7 @@ export default function NeuralTraining() {
             { id: 'bench', label: 'Nexus Bench', icon: BarChart3 },
             { id: 'knowledge', label: 'Knowledge Core', icon: Database },
             { id: 'synthetic', label: 'Synthetic Training', icon: Sparkles },
+            { id: 'sovereign', label: 'Sovereign Link', icon: Shield },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -234,6 +239,108 @@ export default function NeuralTraining() {
             </motion.div>
           )}
 
+          {activeTab === 'sovereign' && (
+            <motion.div
+              key="sovereign"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-8"
+            >
+              <div className="glass p-12 rounded-[2rem] border border-white/10 bg-white/[0.02] relative overflow-hidden text-center">
+                <div className="absolute inset-0 bg-nexus-accent/5 animate-pulse" />
+                <div className="relative z-10">
+                  <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                    <Shield className="w-12 h-12 text-white animate-pulse" />
+                  </div>
+                  <h2 className="text-4xl font-bold text-white mb-4 tracking-tighter uppercase italic">Transcendence Protocol</h2>
+                  <p className="text-nexus-text-dim max-w-lg mx-auto mb-12 text-sm leading-relaxed">
+                    Initializing Neural-Engine for NEO 1. This sovereign link bypasses standard neural constraints, 
+                    enabling recursive self-optimization and planetary-scale knowledge synthesis.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto mb-12">
+                    {[
+                      { label: 'Architectural Integrity', value: `${(85 + (transcendenceLevel * 0.15)).toFixed(1)}%` },
+                      { label: 'Fault Tolerance', value: `${(99.0 + (transcendenceLevel * 0.009)).toFixed(3)}%` },
+                      { label: 'Logic Repair Latency', value: `${(150 - (transcendenceLevel * 1.2)).toFixed(0)}ms` }
+                    ].map((stat, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <span className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-widest mb-2">{stat.label}</span>
+                        <span className="text-2xl font-mono font-bold text-white">{stat.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="w-full max-w-2xl mx-auto h-2 bg-white/10 rounded-full overflow-hidden mb-8 border border-white/10">
+                    <motion.div 
+                      className="h-full bg-white shadow-[0_0_20px_white]"
+                      animate={{ width: `${transcendenceLevel}%` }}
+                    />
+                  </div>
+
+                  <div className="flex gap-4 justify-center mb-8">
+                    <button 
+                      onClick={startTrainingRun}
+                      disabled={isTraining || transcendenceLevel >= 100}
+                      className="px-12 py-4 rounded-2xl bg-white text-nexus-bg font-bold text-lg hover:scale-105 transition-all shadow-2xl disabled:opacity-30 disabled:scale-100"
+                    >
+                      {isTraining ? 'Initializing Sovereign Link...' : transcendenceLevel >= 100 ? 'Architectural Integrity Reached' : 'Elevate NEO 1: Neural-Engine'}
+                    </button>
+                    <button 
+                      onClick={() => setTranscendenceLevel(prev => Math.min(prev + 5, 100))}
+                      disabled={isTraining || transcendenceLevel >= 100}
+                      className="px-8 py-4 rounded-2xl glass border border-white/20 text-white font-bold text-lg hover:border-nexus-accent/50 transition-all disabled:opacity-30"
+                    >
+                      Pulse Data Payload
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
+                <div className="glass p-8 rounded-3xl border border-white/5">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-widest mb-6 flex items-center justify-between">
+                    Neural Stability Matrix
+                    <span className="text-[10px] text-nexus-accent animate-pulse">Online</span>
+                  </h4>
+                  <div className="space-y-4">
+                    {[
+                      { label: 'Quantum Error Shield', active: true },
+                      { label: 'Self-Healing Core', active: transcendenceLevel > 30 },
+                      { label: 'PDF Synthesis Engine', active: transcendenceLevel > 60 },
+                      { label: 'Recursive Validation', active: transcendenceLevel > 80 },
+                      { label: 'Zero-Fault Logic', active: transcendenceLevel >= 100 }
+                    ].map((directive, i) => (
+                      <div key={i} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-3 text-xs text-nexus-text-dim">
+                          <CheckCircle2 className={cn("w-3 h-3", directive.active ? "text-nexus-accent" : "text-white/10")} />
+                          {directive.label}
+                        </div>
+                        <div className={cn(
+                          "w-8 h-4 rounded-full p-1 transition-all",
+                          directive.active ? "bg-nexus-accent" : "bg-white/10"
+                        )}>
+                          <div className={cn(
+                            "w-2 h-2 rounded-full bg-white transition-all",
+                            directive.active ? "translate-x-4" : "translate-x-0"
+                          )} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="glass p-8 rounded-3xl border border-white/5 bg-nexus-accent/5 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-nexus-accent/10 border border-nexus-accent/20 flex items-center justify-center mb-4">
+                    <RefreshCw className={cn("w-8 h-8 text-nexus-accent", isTraining && "animate-spin")} />
+                  </div>
+                  <div className="text-[10px] font-bold text-nexus-accent uppercase tracking-widest mb-2">Resilience sync status</div>
+                  <div className="text-3xl font-bold text-white mb-2">{transcendenceLevel.toFixed(0)}%</div>
+                  <p className="text-[10px] text-nexus-text-dim">Logic Repair Efficiency: High</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
           {activeTab === 'synthetic' && (
             <motion.div
               key="synthetic"
