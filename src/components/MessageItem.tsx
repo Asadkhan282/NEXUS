@@ -269,17 +269,31 @@ export default function MessageItem({ message, onRegenerate, searchQuery = '' }:
       );
     }
 
-    if (isAssistant && typeof message.content === 'string' && message.content.includes("Access Denied [403]")) {
+    if (isAssistant && typeof message.content === 'string' && (message.content.includes("Access Denied [403]") || message.content.includes("bandwidth exceeded") || message.content.includes("quota"))) {
       return (
         <div className="space-y-4">
-          <MarkdownContent content={message.content} />
-          <button 
-            onClick={() => (window as any).aistudio?.openSelectKey()}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-nexus-accent/10 border border-nexus-accent/30 text-nexus-accent font-bold text-xs hover:bg-nexus-accent/20 transition-all shadow-[0_0_20px_rgba(0,242,255,0.1)]"
-          >
-            <Zap className="w-4 h-4" />
-            Select Personal API Key
-          </button>
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium">
+            <MarkdownContent content={message.content} />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button 
+              onClick={() => (window as any).aistudio?.openSelectKey()}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-nexus-accent/10 border border-nexus-accent/30 text-nexus-accent font-bold text-xs hover:bg-nexus-accent/20 transition-all shadow-[0_0_20px_rgba(0,242,255,0.1)] group"
+            >
+              <Zap className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              Authorize Reactive Key
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs hover:bg-white/10 transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Sync Logic
+            </button>
+          </div>
+          <p className="text-[10px] text-nexus-text-dim leading-relaxed">
+            NEXUS core bandwidth is shared. To bypass these limits, please authorize your own API key from a paid Google Cloud project.
+          </p>
         </div>
       );
     }
