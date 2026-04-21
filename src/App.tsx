@@ -43,6 +43,8 @@ import {
   Shield,
   FileText,
   BookOpen,
+  ChevronUp,
+  ChevronDown,
   Beaker,
   Newspaper,
   Palette,
@@ -195,7 +197,41 @@ function NexusApp() {
   });
   const [selectedModel, setSelectedModel] = React.useState<string>(MODELS.GENERAL);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [showScrollNav, setShowScrollNav] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    // Show navigation if we have scrolled down enough
+    setShowScrollNav(scrollTop > 400);
+  };
+
+  const clearNeuralLogs = async () => {
+    if (!user || !currentSessionId) {
+      setMessages([]);
+      return;
+    }
+
+    if (window.confirm("Abort current session logs? This will purge all neural transmissions from this session.")) {
+      try {
+        const messagesRef = collection(db, 'users', user.uid, 'sessions', currentSessionId, 'messages');
+        const snapshot = await getDocs(messagesRef);
+        // We don't delete them from Firestore for now to preserve history, 
+        // just clear local state or create a new session
+        handleNewSession();
+      } catch (error) {
+        console.error("Purge failed:", error);
+      }
+    }
+  };
 
   React.useEffect(() => {
     const handleSwitchTab = (e: any) => {
@@ -556,6 +592,14 @@ function NexusApp() {
                     </div>
                   )}
                   <button 
+                    onClick={clearNeuralLogs}
+                    className="p-2 rounded-xl bg-nexus-purple/10 border border-nexus-purple/20 text-nexus-purple hover:bg-nexus-purple/20 transition-all flex items-center gap-2 group"
+                    title="Clear Neural Logs"
+                  >
+                    <Zap className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden lg:block">Neural Pulse</span>
+                  </button>
+                  <button 
                     onClick={() => exportChatToPDF(messages)}
                     disabled={messages.length === 0}
                     className="p-2 rounded-xl bg-white/5 border border-white/10 text-nexus-text-dim hover:text-white hover:border-white/20 transition-all flex items-center gap-2 disabled:opacity-30 group"
@@ -626,52 +670,85 @@ function NexusApp() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto scroll-smooth no-scrollbar" ref={scrollRef}>
-                    <div className="max-w-4xl mx-auto py-8">
-                      {filteredMessages.map((msg) => (
-                        <MessageItem 
-                          key={msg.id} 
-                          message={msg} 
-                          onRegenerate={msg.role === 'assistant' ? () => handleRegenerate(msg.id) : undefined}
-                          searchQuery={searchQuery}
-                        />
-                      ))}
-                      {isGenerating && (
-                        <div className="flex gap-4 p-6 bg-white/[0.02] border-y border-white/5">
-                          <div className="w-10 h-10 rounded-xl bg-nexus-accent neon-glow flex items-center justify-center flex-shrink-0 animate-pulse">
-                            <Cpu className="w-6 h-6 text-nexus-bg" />
-                          </div>
-                          <div className="flex-1 space-y-3 pt-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-nexus-accent">NEXUS Core Active</span>
-                                <div className="flex gap-1 items-center">
-                                  <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '0ms' }} />
-                                  <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '150ms' }} />
-                                  <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="flex-1 relative overflow-hidden flex flex-col">
+                    <div 
+                      className="flex-1 overflow-y-auto scroll-smooth no-scrollbar" 
+                      ref={scrollRef}
+                      onScroll={handleScroll}
+                    >
+                      <div className="max-w-4xl mx-auto py-8">
+                        {filteredMessages.map((msg) => (
+                          <MessageItem 
+                            key={msg.id} 
+                            message={msg} 
+                            onRegenerate={msg.role === 'assistant' ? () => handleRegenerate(msg.id) : undefined}
+                            searchQuery={searchQuery}
+                          />
+                        ))}
+                        {isGenerating && (
+                          <div className="flex gap-4 p-6 bg-white/[0.02] border-y border-white/5">
+                            <div className="w-10 h-10 rounded-xl bg-nexus-accent neon-glow flex items-center justify-center flex-shrink-0 animate-pulse">
+                              <Cpu className="w-6 h-6 text-nexus-bg" />
+                            </div>
+                            <div className="flex-1 space-y-3 pt-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-nexus-accent">NEXUS Core Active</span>
+                                  <div className="flex gap-1 items-center">
+                                    <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <div className="w-1 h-1 rounded-full bg-nexus-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    <motion.div 
+                                      animate={{ opacity: [1, 0] }}
+                                      transition={{ duration: 0.8, repeat: Infinity }}
+                                      className="w-1.5 h-4 bg-nexus-accent ml-2"
+                                    />
+                                  </div>
+                                </div>
+                                <span className="text-[8px] font-mono text-nexus-text-dim uppercase tracking-[0.2em]">Neural Link: 98.4% Sync</span>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                                   <motion.div 
-                                    animate={{ opacity: [1, 0] }}
-                                    transition={{ duration: 0.8, repeat: Infinity }}
-                                    className="w-1.5 h-4 bg-nexus-accent ml-2"
+                                    initial={{ x: '-100%' }}
+                                    animate={{ x: '100%' }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                    className="h-full w-1/3 bg-gradient-to-r from-transparent via-nexus-accent to-transparent"
                                   />
                                 </div>
                               </div>
-                              <span className="text-[8px] font-mono text-nexus-text-dim uppercase tracking-[0.2em]">Neural Link: 98.4% Sync</span>
-                            </div>
-                            <div className="space-y-1">
-                              <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                                <motion.div 
-                                  initial={{ x: '-100%' }}
-                                  animate={{ x: '100%' }}
-                                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                  className="h-full w-1/3 bg-gradient-to-r from-transparent via-nexus-accent to-transparent"
-                                />
-                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
+
+                    <AnimatePresence>
+                      {showScrollNav && (
+                        <motion.div 
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-30"
+                        >
+                          <button 
+                            onClick={scrollToTop}
+                            className="p-3 rounded-2xl glass border border-white/10 text-white hover:text-nexus-accent hover:border-nexus-accent/50 transition-all shadow-2xl backdrop-blur-xl group"
+                            title="Scroll to Top"
+                          >
+                            <ChevronUp className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
+                          </button>
+                          <div className="h-12 w-[1px] bg-white/10 mx-auto" />
+                          <button 
+                            onClick={scrollToBottom}
+                            className="p-3 rounded-2xl glass border border-white/10 text-white hover:text-nexus-accent hover:border-nexus-accent/50 transition-all shadow-2xl backdrop-blur-xl group"
+                            title="Scroll to Bottom"
+                          >
+                            <ChevronDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
                 <ChatWindow onSendMessage={handleSendMessage} isGenerating={isGenerating} />
